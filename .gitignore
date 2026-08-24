@@ -1,0 +1,29 @@
+# Data are archived separately (SEANOE) and never committed here
+data/
+*.rds
+*.rda
+*.RData
+*.nc
+*.tif
+*.shp
+*.dbf
+*.shx
+*.prj
+*.gpkg
+*.geojson
+*.csv
+
+# Outputs
+outputs/figures/*
+!outputs/figures/.gitkeep
+
+# R session files
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj.user
+
+# OS
+.DS_Store
+Thumbs.db
