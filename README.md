@@ -124,4 +124,5 @@ Python 3.
 
 ## Contact
 
-Fanny Ouzoulias - fanny.ouzoulias@mnhn.fr, fanny.ouzoulias@orange.fr - Muséum national d'Histoire naturelle
+Fanny Ouzoulias - fanny.ouzoulias@mnhn.fr
+Félix Massiot-Granier - felix.massiot-granier@mnhn.fr
