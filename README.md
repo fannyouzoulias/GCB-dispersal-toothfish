@@ -2,7 +2,7 @@
 
 R code supporting:
 
-> Ouzoulias F. et al. *Climate-driven oceanographic changes shape larval dispersal success in the Southern Ocean]*. **Global Change Biology**.
+> Ouzoulias F. et al. *Climate-driven oceanographic changes shape larval dispersal success in the Southern Ocean*. **Global Change Biology**.
 
 The study combines (i) a spatially explicit model of egg production on the
 northern Kerguelen Plateau and (ii) Lagrangian simulations of the 18-week
