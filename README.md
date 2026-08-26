@@ -112,10 +112,7 @@ Python 3.
 
 - **sdmTMBextra** is not on CRAN: `pak::pak("pbs-assess/sdmTMBextra")`. It
   provides the barrier mesh used by both `egg_production/` models.
-- Coastlines come from `coastline.geojson` in the data archive. Heard &
-  McDonald are not in that layer and are taken from `rnaturalearth` at
-  `scale = "medium"`, the finest scale available without the non-CRAN
-  `rnaturalearthhires` package.
+- Coastlines come from `coastline.geojson` in the data archive. 
 - **LAMTA** (Rousselet et al. 2025) is required by `advection/`, together with
   `numpy`, `pandas` and `geopandas`. It is not distributed on PyPI.
 
@@ -126,3 +123,4 @@ Python 3.
 
 Fanny Ouzoulias - fanny.ouzoulias@mnhn.fr
 Félix Massiot-Granier - felix.massiot-granier@mnhn.fr
+Clara Péron - clara.peron@mnhn.fr
