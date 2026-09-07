@@ -83,10 +83,6 @@ deposit is cited in the associated publication.
 Download the archive, then set `data_dir` in `config.R` to point at it. Every
 script builds its paths from there.
 
-The archive also holds the fishery-observer extracts that the egg-production
-models are fitted to (station counts raised to the total catch, individual
-lengths, fecundity samples), so both chains can be run from it.
-
 One category of input is *not* redistributed: **third-party products** (DUACS
 geostrophic velocities, GEBCO bathymetry, Park & Durand front climatologies)
 are cited in the paper and in the data archive, and must be downloaded from
@@ -95,13 +91,6 @@ notebook needs the DUACS velocity fields, and `01_load_trajectories.R` needs the
 GEBCO tile covering 55-89 E / 40-59 S to sample the seabed depth along the
 trajectories. The `egg_production/` chain needs neither: the slope it uses is
 already attached to the archived tables.
-
-## Figures
-
-Figures are written to `outputs/figures/`. Colours, panel sizes and label
-positions may differ slightly from the published versions, which received minor
-cosmetic editing; multi-panel plates were assembled in a vector graphics editor
-from the individual panels produced here.
 
 
 ## Requirements
