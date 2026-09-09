@@ -27,3 +27,5 @@ outputs/figures/*
 # OS
 .DS_Store
 Thumbs.db
+
+larval_dispersal/07_front_validation.R
