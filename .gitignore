@@ -28,4 +28,12 @@ outputs/figures/*
 .DS_Store
 Thumbs.db
 
-larval_dispersal/07_front_validation.Routputs/figures/
+larval_dispersal/07_front_validation.R
+
+front_position/*
+
+outputs/
+
+__pycache__/
+*.py[cod]
+*.egg-info/

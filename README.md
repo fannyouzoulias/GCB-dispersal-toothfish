@@ -18,7 +18,7 @@ its output. The two R chains can also be run independently of each other.
 ```
 egg_production/     spatial models of female abundance, length and fecundity
                     -> gridded egg production used to weight the released particles
-advection/          the Lagrangian simulation itself (Python notebook)
+advection/          the Lagrangian simulation, and the front positions it is read against
 larval_dispersal/   trajectories, retention metrics, front-intensity indices
                     and the retention ~ front model
 config.R            the ONE file to edit: path to the data archive
@@ -46,6 +46,31 @@ positions per release week and year: the input of `larval_dispersal/`.
 
 Written by A. Nalivaev. It needs the **LAMTA** software (Rousselet et al. 2025),
 which is not a pip package, plus `numpy`, `pandas` and `geopandas`.
+
+**The front of each year.** The dispersal is read against two independent
+definitions of the Polar Front: a hydrographic one, the northern limit of Winter
+Water, and a dynamical one, a contour of sea surface topography. The first is
+built by the notebooks below, in this order; the second is `PF_position_park.py`.
+
+| Script | What it does |
+|---|---|
+| `PF_position_clean.ipynb` | flags, day by day, every grid point of GLORYS12V1 whose temperature minimum between 100 and 400 m is below 3 degrees and shallower than 350 m: the Winter Water signature of Azarian et al. (2024). Averaging those daily flags over the advection window gives a probability of Winter Water presence. One year per run (`year` is set by hand). Writes `WW_prob_presence_<year>_week_25-29.nc` |
+| `PF_position_from_ww_prob_presence.ipynb` | turns that field into a line: per meridian, the northernmost cell above a probability of 0.8, kept only where the Winter Water block below it is 12 cells deep, so that detached patches further north are ignored, then smoothed with a 24-point running mean. Loops over 2000-2023 and writes `position_PF_<year>_week_25-29.csv`, the front used by `larval_dispersal/`. The `to_csv` call is commented out in the saved notebook |
+| `average_velocity_field.ipynb` | averages the norm of the DUACS surface geostrophic velocity over the same window, one field per year, read through the LAMTA `loadCMEMSuv` function. Writes `<year>_uv_norm_field.nc` |
+| `surface_currents_at_PF_location.ipynb` | samples that mean velocity field along the front line of each year: the surface proxy for front intensity the published index is built on |
+| `PF_position_park.py` | the dynamical definition: the front as a single contour of dynamic topography, as Park et al. (2019) define it, with their constraint that it round Kerguelen from the south on the 500-1000 m escarpment. Self-contained, `--download` included. Writes one line per year, an annual table and a plate of 24 panels |
+
+Note the file names. They all say `week_25-29`, but the window is the Thursday
+of week 25 to the Thursday of week 29 + 18, i.e. the release weeks plus the
+drift: roughly the end of June to the end of November.
+
+`PF_position_park.py` runs on its own: it needs no other script and no module
+of `front_position/`. Edit the `ROOT` path at the top, run
+`python PF_position_park.py --download` once, download the Park & Durand front
+file by hand from doi:10.17882/59800, then run the script. `--download` fetches
+the CNES-CLS22 mean dynamic topography, the DUACS fields of each advection
+window and the GLORYS12 bathymetry: a few hundred MB, a few minutes.
+
 
 ### `larval_dispersal/`
 
