@@ -28,4 +28,4 @@ outputs/figures/*
 .DS_Store
 Thumbs.db
 
-larval_dispersal/07_front_validation.R
+larval_dispersal/07_front_validation.Routputs/figures/
