@@ -14,22 +14,6 @@ Manual input:
   Park & Durand (2019) ACC fronts, doi:10.17882/59800
   -> ROOT/park_durand_2019_ACC_fronts.nc
 
-Writes to ROOT/output/: pf_park_<year>.csv, pf_park_annual.csv,
-pf_park_by_year.png.
-
-The method, and the checks behind the contour value and the Kerguelen
-constraint, are documented in front_position/README.md. This script is the
-standalone equivalent of front_position/21_pf_jet_kerguelen.py: it reaches the
-same lines without the fifteen scripts that precede it, taking the mean dynamic
-topography from the CNES-CLS22 product rather than rebuilding it from twenty
-years of daily ADT. The two agree to 0.2 km in 23 years of 24; 2000, the year
-whose contour has to be lowered furthest, lands one 1 mm step earlier and
-differs by 1.2 km.
-
-Usage:
-  python PF_position_park.py --download
-  python PF_position_park.py
-  python PF_position_park.py --no-figure
 """
 
 import sys
