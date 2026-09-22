@@ -9,6 +9,15 @@ northern Kerguelen Plateau and (ii) Lagrangian simulations of the 18-week
 pelagic larval phase (2000-2023), to quantify larval retention on the shelf and
 its relationship with Polar Front intensity.
 
+**One result differs from the manuscript.** The Polar Front intensity index is
+sampled along the front of each year, a contour of dynamic topography
+(Park et al. 2019), where the manuscript sampled it along the climatological
+front, one contour fixed for all years. Retention still falls as the front
+strengthens, by a little less: slope -0.167 against -0.180 on log retention per
+standard deviation, p = 0.014 against 0.007. `05_front_indices.R` builds both
+indices, `06_retention_front_glm.R` fits the corrected one, and
+`10_pf_park_intensity_glm.R` is the side-by-side that justifies the change.
+
 ## Contents
 
 The repository follows the paper from the fishery data to the figures: the
@@ -21,7 +30,8 @@ egg_production/     spatial models of female abundance, length and fecundity
 advection/          the Lagrangian simulation, and the front positions it is read against
 larval_dispersal/   trajectories, retention metrics, front-intensity indices
                     and the retention ~ front model
-config.R            the ONE file to edit: path to the data archive
+config.R            the ONE file to edit: path to the data archive, and to
+                    the front positions rebuilt by advection/
 outputs/figures/    where figures are written
 ```
 
@@ -58,18 +68,39 @@ built by the notebooks below, in this order; the second is `PF_position_park.py`
 | `PF_position_from_ww_prob_presence.ipynb` | turns that field into a line: per meridian, the northernmost cell above a probability of 0.8, kept only where the Winter Water block below it is 12 cells deep, so that detached patches further north are ignored, then smoothed with a 24-point running mean. Loops over 2000-2023 and writes `position_PF_<year>_week_25-29.csv`, the front used by `larval_dispersal/`. The `to_csv` call is commented out in the saved notebook |
 | `average_velocity_field.ipynb` | averages the norm of the DUACS surface geostrophic velocity over the same window, one field per year, read through the LAMTA `loadCMEMSuv` function. Writes `<year>_uv_norm_field.nc` |
 | `surface_currents_at_PF_location.ipynb` | samples that mean velocity field along the front line of each year: the surface proxy for front intensity the published index is built on |
-| `PF_position_park.py` | the dynamical definition: the front as a single contour of dynamic topography, as Park et al. (2019) define it, with their constraint that it round Kerguelen from the south on the 500-1000 m escarpment. Self-contained, `--download` included. Writes one line per year, an annual table and a plate of 24 panels |
+| `PF_position_park.py` | the dynamical definition: the front as a single contour of dynamic topography, as Park et al. (2019) define it, with their constraint that it round Kerguelen from the south on the 500-1000 m escarpment. Self-contained, `--download` included. Writes one line per year (`pf_park_<year>.csv`, with the current speed along it), an annual table and a plate of 24 panels. **This is where the front intensity index comes from** |
+| `download_glorys_T200_kerguelen.py` | GLORYS12 daily temperature at 200 m over 65-72 E / 55-45 S, interpolated to 200 m and averaged to 0.25 degrees: the series `09_mhw_kerguelen.R` runs the heatwave detection on |
 
 Note the file names. They all say `week_25-29`, but the window is the Thursday
 of week 25 to the Thursday of week 29 + 18, i.e. the release weeks plus the
 drift: roughly the end of June to the end of November.
 
-`PF_position_park.py` runs on its own: it needs no other script and no module
-of `front_position/`. Edit the `ROOT` path at the top, run
-`python PF_position_park.py --download` once, download the Park & Durand front
-file by hand from doi:10.17882/59800, then run the script. `--download` fetches
-the CNES-CLS22 mean dynamic topography, the DUACS fields of each advection
-window and the GLORYS12 bathymetry: a few hundred MB, a few minutes.
+`PF_position_park.py` runs on its own, with no other script and no shared
+module. Everything it reads and writes lives under `ROOT`, so set that first --
+either at the top of the file or in `PF_PARK_ROOT`, and keep it outside the
+repository. Then run `python PF_position_park.py --download` once, download the
+Park & Durand front file by hand from doi:10.17882/59800, and run the script.
+`--download` fetches the CNES-CLS22 mean dynamic topography, the DUACS fields
+of each advection window and the GLORYS12 bathymetry: a few hundred MB, a few
+minutes.
+
+Two more variables save re-downloading or re-editing: `PF_DUACS_DIR` points at
+a DUACS cache you already have (one folder per averaging period -- the window
+and the calendar year hold different days and must not share one), and
+`PF_COASTLINE` at `coastline.geojson` of the data archive, used only to draw
+the land. Without it the figure simply leaves the land blank.
+
+It has two options besides. `--no-figure` writes the tables only.
+`--fullyear` is a sensitivity test: it averages the ADT over the whole calendar
+year instead of over the advection window, changes nothing else, and writes to
+`ROOT/output/fullyear/`. It reads a cache of its own, so run
+`python PF_position_park.py --download --fullyear` once first. Figure B of
+`08_front_maps_by_year.R` is the comparison of the two, and is skipped with a
+message when `--fullyear` has not been run.
+
+`download_glorys_T200_kerguelen.py` likewise has an `OUT_DIR` to set, at the
+top of the file or in `GLORYS_T200_DIR`; it caches year by year, so it can be
+interrupted and resumed, and it takes one or more years as arguments.
 
 
 ### `larval_dispersal/`
@@ -83,10 +114,22 @@ window and the GLORYS12 bathymetry: a few hundred MB, a few minutes.
 | `04_retention_recruitment.R` | retention by sector, spawning-to-recruitment contributions, sensitivity analyses |
 | `05_front_indices.R` | annual Polar Front / Subantarctic Front intensity indices |
 | `06_retention_front_glm.R` | Gaussian GLM of log recruitment against front intensity |
+| `07_trajectory_maps_by_year.R` | the same dispersal pathways split year by year, each panel carrying the three fronts of that year |
+| `08_front_maps_by_year.R` | those fronts on their own, and the ADT contour compared between the advection window and the whole calendar year |
+| `09_mhw_kerguelen.R` | marine heatwaves at 200 m (Hobday et al. 2016) over 2000-2023: are the years with a displaced front simply warm years |
+| `10_pf_park_intensity_glm.R` | why the index was changed: the model refitted on three sampling paths -- the climatological front, the annual Winter Water edge, the annual ADT contour -- in one and the same velocity field |
 
 Scripts are numbered in run order and are meant to be sourced in sequence within
-a chain: `00_setup.R` first, then the others. `06_retention_front_glm.R` needs
-the annual tables written by `04` and `05`.
+a chain: `00_setup.R` first, then the others. `05_front_indices.R` needs the
+annual PF contours of `advection/PF_position_park.py`, and
+`06_retention_front_glm.R` the annual tables written by `04` and `05`.
+
+`07` to `10` were added for the revision. They read the fronts written by
+`advection/`, through the folders set in `config.R`, and `08`, `09` and `10`
+need no trajectories at all. `08` draws its Figure B only if
+`PF_position_park.py --fullyear` has been run as well. `09` also needs
+`heatwaveR` and `terra`, and the temperature file rebuilt by
+`advection/download_glorys_T200_kerguelen.py`.
 
 `01_load_trajectories.R` is the slow one: it reads about 900 MB of raw advection
 output, so it takes several minutes and a few GB of memory. It saves its two
@@ -108,14 +151,23 @@ deposit is cited in the associated publication.
 Download the archive, then set `data_dir` in `config.R` to point at it. Every
 script builds its paths from there.
 
+`config.R` has a second block of paths, for what `advection/` **rebuilds**
+rather than what the archive ships: the front of each year, the mean velocity
+field of each window, the temperature series behind the heatwaves. They are
+several GB, they are reproducible from the scripts in `advection/`, and they
+are not in the deposit, so `config.R` carries one folder per kind
+(`park_dir`, `ww_dir`, `ww_int_dir`, `uv_dir`, `t200_dir`) and each comment
+names the script that writes it. Run those scripts first, or point the paths at
+wherever you already ran them.
+
 One category of input is *not* redistributed: **third-party products** (DUACS
 geostrophic velocities, GEBCO bathymetry, Park & Durand front climatologies)
 are cited in the paper and in the data archive, and must be downloaded from
-their own repositories. Only two scripts read them directly: the advection
-notebook needs the DUACS velocity fields, and `01_load_trajectories.R` needs the
-GEBCO tile covering 55-89 E / 40-59 S to sample the seabed depth along the
-trajectories. The `egg_production/` chain needs neither: the slope it uses is
-already attached to the archived tables.
+their own repositories. Three scripts read them directly: the advection
+notebook and `PF_position_park.py` need the DUACS fields, and
+`01_load_trajectories.R` needs the GEBCO tile covering 55-89 E / 40-59 S to
+sample the seabed depth along the trajectories. The `egg_production/` chain
+needs neither: the slope it uses is already attached to the archived tables.
 
 
 ## Requirements

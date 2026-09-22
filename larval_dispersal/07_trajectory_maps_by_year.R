@@ -1,5 +1,5 @@
 ################################################################################
-# 09_trajectory_maps_by_year.R
+# 07_trajectory_maps_by_year.R
 #
 # Figure 5 of the paper, split year by year, with the Polar Front of that same
 # year drawn on top.
@@ -7,8 +7,15 @@
 # 02_trajectory_maps.R pools all years into one density of particle passages and
 # overlays the CLIMATOLOGICAL front. Here the same density is computed per year
 # and each panel carries the front position actually observed that year
-# (A. Nalivaev, northern edge of the Winter Water probability of presence over
-# weeks 25-29), so the dispersal pattern can be read against a front that moves.
+# (A. Nalivaev, northern edge of the Winter Water probability of presence from
+# release week 25 to week 29 + 18, i.e. the dispersal window despite the
+# "week_25-29" file names), so the dispersal pattern can be read against a front
+# that moves. The climatological PF (Park & Durand 2019), along which the
+# published intensity index is sampled, is drawn in every panel for reference
+# (SHOW_STATIC). The Polar Front jet of each year can be added in blue
+# (SHOW_PARK_JET): the ADT streamline of Park et al. (2019), with their
+# constraint that it round Kerguelen from the south on the 500-1000 m escarpment
+# (advection/PF_position_park.py).
 #
 # Note that this is a HYDROGRAPHIC boundary, while the particles are advected by
 # surface geostrophic velocities: the two need not coincide, and in 2012, 2013,
@@ -29,12 +36,33 @@ suppressPackageStartupMessages({
 ## ---------------------------------------------------------------------------
 ## PART 0. Paths and inputs
 ## ---------------------------------------------------------------------------
-pf_root <- "P:/MNHN/PhD/dispersion_larvaire/position_PF"
-dir_pos <- file.path(pf_root, "position_PF_interannual")
-seanoe  <- "P:/MNHN/PhD/dispersion_larvaire/simus_dispersion/seanoe"
+# Which front contour to draw:
+#   "sent"    the files received (northernmost point topping 12 contiguous cells
+#             above 0.8, then a 2 deg running mean)
+#   "azarian" the literal definition of Azarian et al. 2024 (northernmost point
+#             above 0.8), recomputed by 10_pf_position_azarian.R -- smoothed
+#             copy, because the raw edge steps by several degrees between
+#             neighbouring longitudes
+PF_SOURCE <- "sent"
 
-pick <- function(f) if (exists("data_dir") && file.exists(file.path(data_dir, f)))
-  file.path(data_dir, f) else file.path(seanoe, f)
+# Also draw the climatological PF (dashed) in every panel.
+SHOW_STATIC <- TRUE
+
+# Also draw the PF jet of each year (blue), from advection/PF_position_park.py.
+# Its folder is `park_dir`, set in config.R.
+SHOW_PARK_JET <- TRUE
+
+dir_pos <- switch(PF_SOURCE,
+  sent    = ww_dir,
+  azarian = file.path("outputs", "revision", "position_PF_azarian"),
+  stop("PF_SOURCE must be \"sent\" or \"azarian\"")
+)
+pf_file <- switch(PF_SOURCE,
+  sent    = "position_PF_%d_week_25-29.csv",
+  azarian = "position_PF_azarian_smoothed_%d_week_25-29.csv"
+)
+# Files of the data archive, through `data_dir` of config.R.
+pick <- function(f) dpath(f)
 
 if (!exists("out_dir")) out_dir <- "outputs"
 rev_fig <- file.path(out_dir, "figures", "revision")
@@ -119,13 +147,13 @@ grid_by_year <- map_dfr(sort(unique(df_w$Year)), function(y) {
 years <- sort(unique(grid_by_year$Year))
 
 pf_year <- map_dfr(years, function(y) {
-  f <- file.path(dir_pos, sprintf("position_PF_%d_week_25-29.csv", y))
+  f <- file.path(dir_pos, sprintf(pf_file, y))
   suppressMessages(read_csv(f, show_col_types = FALSE)) %>%
     dplyr::select(lon = lon_PF, lat = lat_PF) %>%
     mutate(Year = y)
 })
 
-# Same flag as 08_pf_interannual_position.R: mean latitude over the 67-72 E
+# Same flag as explo/08_pf_interannual_position.R: mean latitude over the 67-72 E
 # window, north or south of 51 S. In those four years the Winter Water field is
 # patchier (8-12k cells above 0.8 against 14-17k, mean probability 0.47-0.53
 # against 0.54-0.64 in this window), so the "12 contiguous cells" criterion has
@@ -139,6 +167,34 @@ pf_flag <- pf_year %>%
 
 pf_year <- left_join(pf_year, dplyr::select(pf_flag, Year, position), by = "Year")
 
+# Climatological PF: the same file, and the same point order, as the published
+# index (05_front_indices.R) and Figure 5 (00_setup.R).
+pf_clim <- read_csv(pick("front_intensity_PF.csv"), show_col_types = FALSE) %>%
+  dplyr::select(lon = `Lon PF`, lat = `Lat PF`) %>%
+  filter(!is.na(lon), !is.na(lat))
+
+# PF jet of the year: the ADT streamline of Park et al. (2019), levelled, with
+# the Kerguelen constraint (value lowered in 2000, 2002, 2009, 2014 and 2020).
+# Written in path order, west to east.
+if (SHOW_PARK_JET) {
+  jet_year <- map_dfr(years, function(y) {
+    read_csv(file.path(park_dir, sprintf("pf_park_%d.csv", y)),
+             show_col_types = FALSE) %>%
+      dplyr::select(lon, lat) %>%
+      mutate(Year = y)
+  })
+}
+
+front_key <- c(annual = "Annual northern limit of Winter Water",
+               clim   = "Climatological Polar Front (Park & Durand, 2019)",
+               jet    = "PF-associated ADT streamline")
+front_col <- set_names(c("black", "black", "#0072B2"), front_key)
+front_lty <- set_names(c("solid", "42", "solid"), front_key)
+# unnamed: ggplot takes the names of the breaks as labels
+shown     <- unname(front_key[c(TRUE, SHOW_STATIC, SHOW_PARK_JET)])
+front_guide <- function(...) guide_legend(order = 1, direction = "vertical",
+                                          keywidth = unit(2.5, "cm"), ...)
+
 ## ---------------------------------------------------------------------------
 ## PART 3. Panel labels
 ## ---------------------------------------------------------------------------
@@ -146,6 +202,7 @@ to_lab <- function(df) mutate(df, panel = factor(Year, levels = years))
 
 grid_by_year <- to_lab(grid_by_year)
 pf_year      <- to_lab(pf_year)
+if (SHOW_PARK_JET) jet_year <- to_lab(jet_year)
 
 ## ---------------------------------------------------------------------------
 ## PART 4. The plate
@@ -159,11 +216,27 @@ p_year <- ggplot() +
   geom_tile(data = grid_by_year,
             aes(x = Longitude, y = Latitude, fill = Eggs_Weighted),
             width = res_lon, height = res_lat) +
+  # climatological front, dashed, no Year column so it repeats in every panel
+  { if (SHOW_STATIC) list(
+      geom_path(data = pf_clim, aes(lon, lat), colour = "white", linewidth = 1.1),
+      geom_path(data = pf_clim, aes(lon, lat, linetype = front_key[["clim"]],
+                                    colour = front_key[["clim"]]), linewidth = 0.5)) } +
+  # PF jet of the year, blue, under the Winter Water edge
+  { if (SHOW_PARK_JET) list(
+      geom_path(data = jet_year, aes(lon, lat, group = Year),
+                colour = "white", linewidth = 1.6),
+      geom_path(data = jet_year, aes(lon, lat, group = Year, linetype = front_key[["jet"]],
+                                     colour = front_key[["jet"]]), linewidth = 0.85)) } +
   # front of the year, with a white halo so it reads over the colours
   geom_path(data = pf_year, aes(lon, lat, group = Year),
             colour = "white", linewidth = 1.1) +
-  geom_path(data = pf_year, aes(lon, lat, group = Year),
-            colour = "black", linewidth = 0.45) +
+  geom_path(data = pf_year, aes(lon, lat, group = Year, linetype = front_key[["annual"]],
+                                colour = front_key[["annual"]]), linewidth = 0.45) +
+  # colour and line type share one legend: same name, breaks and guide
+  scale_colour_manual(name = NULL, values = front_col, breaks = shown,
+                      guide = front_guide(override.aes = list(linewidth = 1.2))) +
+  scale_linetype_manual(name = NULL, values = front_lty, breaks = shown,
+                        guide = front_guide()) +
   geom_sf(data = land_sf, fill = "darkgrey", inherit.aes = FALSE) +
   facet_wrap(~ panel, ncol = 4) +
   scale_fill_viridis_c(
@@ -172,13 +245,18 @@ p_year <- ggplot() +
     guide  = guide_colorbar(direction = "horizontal", title.position = "top",
                             barwidth = unit(14, "cm"), barheight = unit(0.6, "cm"))
   ) +
+  # no 85 E label: at the panel edge it ran into the 60 E of the next panel
+  scale_x_continuous(breaks = seq(60, 80, by = 5)) +
   coord_sf(xlim = c(60, 85), ylim = c(-54, -44), expand = FALSE) +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() + theme_paper() +
-  theme(legend.position = "bottom", legend.box = "horizontal")
+  theme(legend.position = "bottom", legend.box = "horizontal",
+        panel.spacing.x = unit(1.8, "lines"))
 
-ggsave(file.path(rev_fig, "trajectories_by_year_with_front.png"), p_year,
+fig_name <- sprintf("trajectories_by_year_with_front_%s%s%s.png", PF_SOURCE,
+                    if (SHOW_STATIC) "_and_static" else "",
+                    if (SHOW_PARK_JET) "_park_jet" else "")
+ggsave(file.path(rev_fig, fig_name), p_year,
        width = 17, height = 18, dpi = 250, limitsize = FALSE)
 
-message("Written: ", normalizePath(file.path(rev_fig,
-        "trajectories_by_year_with_front.png"), mustWork = FALSE))
+message("Written: ", normalizePath(file.path(rev_fig, fig_name), mustWork = FALSE))

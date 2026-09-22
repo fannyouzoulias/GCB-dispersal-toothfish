@@ -14,8 +14,24 @@ Manual input:
   Park & Durand (2019) ACC fronts, doi:10.17882/59800
   -> ROOT/park_durand_2019_ACC_fronts.nc
 
+Options:
+  --download    fetch the three products above, then stop
+  --no-figure   write the tables, skip the plate of 24 panels
+  --fullyear    sensitivity test: average the ADT over the WHOLE CALENDAR YEAR,
+                1 January to 31 December, instead of the advection window, and
+                change nothing else. The window is the particles' own span, so
+                the field the contour is read from is the field that carried
+                them -- but it is a choice, and the contour could owe its
+                position to the half of the year it looks at rather than to the
+                circulation. It reads its own DUACS cache, so run
+                `python PF_position_park.py --download --fullyear` once; the
+                days are NOT weighted, a calendar-year mean gives the summer
+                months the weight of their length, which is the point of the
+                test. Results go to ROOT/output/fullyear/.
+
 """
 
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -31,12 +47,15 @@ from scipy.ndimage import gaussian_filter
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-ROOT = Path(r"P:\MNHN\PhD\dispersion_larvaire\position_PF\park_standalone")
+# Everything this script reads and writes lives under ROOT: the DUACS cache it
+# downloads, the three auxiliary NetCDFs, and its output/ folder. It holds a few
+# hundred MB, so keep it OUTSIDE the repository. Set it here, or once and for
+# all in the PF_PARK_ROOT environment variable.
+ROOT = Path(os.environ.get("PF_PARK_ROOT", "pf_park"))
 
-# Optional figure inputs
-COASTLINE = Path(
-    r"P:\MNHN\PhD\dispersion_larvaire\simus_dispersion\seanoe\coastline.geojson"
-)
+# Optional figure inputs. The coastline is coastline.geojson of the data
+# archive; the figure simply leaves the land blank when it is not found.
+COASTLINE = Path(os.environ.get("PF_COASTLINE", "coastline.geojson"))
 LARVAL_PATHWAY = None  # folder containing larval_pathway_<year>.csv, or None
 
 YEARS = range(2000, 2024)
@@ -66,8 +85,17 @@ MAX_SHIFT = 0.05                # m
 XLIM, YLIM = (60.0, 85.0), (-54.0, -44.0)
 DISPLACED_YEARS = (2012, 2013, 2017, 2023)  # flagged in the figure
 
-YEAR_DIR = ROOT / "duacs_yearly"
-OUT = ROOT / "output"
+FULLYEAR = "--fullyear" in sys.argv
+
+# The DUACS cache is the bulky part, ~1.5 GB per averaging period. Point
+# PF_DUACS_DIR at it if you already downloaded it elsewhere (one folder per
+# period: the two must not share one, they hold different days).
+YEAR_DIR = Path(
+    os.environ.get(
+        "PF_DUACS_DIR", ROOT / ("duacs_fullyear" if FULLYEAR else "duacs_yearly")
+    )
+)
+OUT = ROOT / "output" / "fullyear" if FULLYEAR else ROOT / "output"
 MDT_FILE = ROOT / "cnes_cls22_mdt.nc"
 BATHY_FILE = ROOT / "glorys12_deptho.nc"
 PARK_FILE = ROOT / "park_durand_2019_ACC_fronts.nc"
@@ -76,6 +104,14 @@ PARK_FILE = ROOT / "park_durand_2019_ACC_fronts.nc"
 def thursday(year, week):
     """Thursday of week `week`, matching the advection notebooks."""
     return datetime.strptime(f"{year}-W{week}-4", "%Y-W%W-%w")
+
+
+def span(year):
+    """The days the ADT is averaged over: the advection window, or the year."""
+    if FULLYEAR:
+        return datetime(year, 1, 1), datetime(year, 12, 31)
+    w0, w1, nadv = WINDOW
+    return thursday(year, w0), thursday(year, w1 + nadv)
 
 
 # ---------------------------------------------------------------------------
@@ -125,11 +161,9 @@ def download():
         **BOX,
     )
 
-    print("(2) DUACS annual advection windows")
-    w0, w1, nadv = WINDOW
+    print("(2) DUACS calendar years" if FULLYEAR else "(2) DUACS annual advection windows")
     for year in YEARS:
-        t0 = thursday(year, w0)
-        t1 = thursday(year, w1 + nadv)
+        t0, t1 = span(year)
         grab(
             YEAR_DIR / f"duacs_{year}.nc",
             dataset_id=ADT_DATASET,
@@ -301,24 +335,25 @@ acc = (lat >= ACC_BAND[0]) & (lat <= ACC_BAND[1])
 REFERENCE_LEVEL = float(np.nanmean(mdt.values[acc]))
 
 print(f"Reference PF-associated MDT contour: {100 * PF_VALUE:.2f} cm")
+if FULLYEAR:
+    print("--fullyear: ADT averaged over the calendar year, not the advection window")
 print(
     f"69 E escarpment: 500 m at {LAT_500:.2f}, 1000 m at {LAT_1000:.2f}; "
     f"accepted {LAT_1000 - TOL:.2f} to {LAT_500 + TOL:.2f}"
 )
 
-w0, w1, nadv = WINDOW
 rows = []
 lines = {}
 
 for year in YEARS:
     path = need(
         YEAR_DIR / f"duacs_{year}.nc",
-        "run: python PF_position_park.py --download",
+        "run: python PF_position_park.py --download"
+        + (" --fullyear" if FULLYEAR else ""),
     )
     ds = xr.open_dataset(path).sortby("latitude").sortby("longitude")
 
-    t0 = thursday(year, w0)
-    t1 = thursday(year, w1 + nadv)
+    t0, t1 = span(year)
     w = ds.sel(time=slice(t0, t1)).load()
     ds.close()
 

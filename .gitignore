@@ -28,7 +28,11 @@ outputs/figures/*
 .DS_Store
 Thumbs.db
 
-larval_dispersal/07_front_validation.R
+# Machine-specific paths: see the end of config.R
+config.local.R
+
+# Exploratory and revision-only work: kept on disk, out of the repository
+larval_dispersal/explo/
 
 front_position/*
 

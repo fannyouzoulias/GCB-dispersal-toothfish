@@ -11,21 +11,27 @@
 #   - log R against standardized SAF intensity (Table A4)
 #   - regression diagnostics of the PF model
 #
+# The PF intensity is PF_park_cm_s, sampled along the front OF THAT YEAR: the
+# correction made at revision, see the header of 05_front_indices.R. The
+# manuscript used PF_mean_cm_s, the climatological contour, which is still
+# written out by 05; 10_pf_park_intensity_glm.R fits both and shows the
+# difference.
+#
 # Requires: 00_setup.R, and the CSVs written by 04_retention_recruitment.R
 #           and 05_front_indices.R
 #
 # Author: Fanny Ouzoulias
-# Date:   2026-08-19
+# Date:   2026-08-19, PF index corrected 2026-09-22
 ################################################################################
 
 ## Annual table ----------------------------------------------------------------
 dat <- read_csv(file.path(out_dir, "recruited_annual.csv"), show_col_types = FALSE) %>%
   left_join(read_csv(file.path(out_dir, "front_indices_annual.csv"),
                      show_col_types = FALSE), by = "Year") %>%
-  drop_na(Recruited_total, PF_mean_cm_s, SAF_mean_cm_s) %>%
+  drop_na(Recruited_total, PF_park_cm_s, SAF_mean_cm_s) %>%
   mutate(
     logR  = log(Recruited_total),
-    z_PF  = as.numeric(scale(PF_mean_cm_s)),
+    z_PF  = as.numeric(scale(PF_park_cm_s)),
     z_SAF = as.numeric(scale(SAF_mean_cm_s))
   )
 
