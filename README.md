@@ -2,7 +2,7 @@
 
 Code supporting:
 
-> Ouzoulias F. et al. *Climate-driven oceanographic changes shape larval dispersal success in the Southern Ocean*. **Global Change Biology**.
+> Ouzoulias F. et al. *Climate-driven oceanographic changes shape larval dispersal success in the Southern Ocean*. **Global Change Biology** (in 2nd revision).
 
 ## Overview
 
