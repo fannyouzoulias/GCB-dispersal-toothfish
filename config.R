@@ -24,11 +24,6 @@ dir.create(fig_dir, showWarnings = FALSE, recursive = TRUE)
 ## Helper: build a path inside the data archive --------------------------------
 dpath <- function(...) file.path(data_dir, ...)
 
-if (!dir.exists(data_dir)) {
-  warning("data_dir does not exist: ", normalizePath(data_dir, mustWork = FALSE),
-          "\nDownload the data archive and set `data_dir` in config.R.")
-}
-
 ## Front positions written by advection/ ---------------------------------------
 # Not part of the data archive: these are rebuilt, year by year, by the scripts
 # of advection/. Edit if you ran them somewhere else.
@@ -62,3 +57,10 @@ local_cfg <- if (requireNamespace("here", quietly = TRUE))
   here::here("config.local.R") else "config.local.R"
 if (file.exists(local_cfg)) source(local_cfg)
 rm(local_cfg)
+
+## Check, once any local override has been applied -----------------------------
+if (!dir.exists(data_dir)) {
+  warning("data_dir does not exist: ", normalizePath(data_dir, mustWork = FALSE),
+          "\nDownload the data archive and set `data_dir` in config.R,",
+          "\nor put your own paths in config.local.R.")
+}
