@@ -10,24 +10,31 @@ Downloads with --download:
   2. DUACS L4: `adt`, `ugos`, `vgos`, only over each larval-advection window
   3. GLORYS12 static bathymetry: `deptho`
 
-Manual input:
+Literature input:
   Park & Durand (2019) ACC fronts, doi:10.17882/59800
   -> ROOT/park_durand_2019_ACC_fronts.nc
 
 Options:
   --download    fetch the three products above, then stop
   --no-figure   write the tables, skip the plate of 24 panels
-  --fullyear    sensitivity test: average the ADT over the WHOLE CALENDAR YEAR,
-                1 January to 31 December, instead of the advection window, and
-                change nothing else. The window is the particles' own span, so
-                the field the contour is read from is the field that carried
-                them -- but it is a choice, and the contour could owe its
-                position to the half of the year it looks at rather than to the
-                circulation. It reads its own DUACS cache, so run
-                `python PF_position_park.py --download --fullyear` once; the
-                days are NOT weighted, a calendar-year mean gives the summer
-                months the weight of their length, which is the point of the
-                test. Results go to ROOT/output/fullyear/.
+  --fullyear    sensitivity test on the averaging period.
+
+                By default the contour is read from the ADT averaged over the
+                advection window: early June to early December, the days the
+                particles are actually drifting. With --fullyear it is read
+                from the ADT averaged over the calendar year instead, 1 January
+                to 31 December, every day weighing the same.
+
+                Nothing else changes, so whatever moves between the two is the
+                averaging period and only that. The question it answers: does
+                the contour sit where it does because of the circulation, or
+                because of the months we chose to look at?
+
+                It needs the whole year of DUACS and keeps its own cache, so
+                run `python PF_position_park.py --download --fullyear` once
+                first. Results go to ROOT/output/fullyear/, beside the window
+                ones; 08_front_maps_by_year.R plots the two against each
+                other.
 
 """
 

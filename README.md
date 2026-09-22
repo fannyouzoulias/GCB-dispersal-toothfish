@@ -91,10 +91,14 @@ and the calendar year hold different days and must not share one), and
 the land. Without it the figure simply leaves the land blank.
 
 It has two options besides. `--no-figure` writes the tables only.
-`--fullyear` is a sensitivity test: it averages the ADT over the whole calendar
-year instead of over the advection window, changes nothing else, and writes to
-`ROOT/output/fullyear/`. It reads a cache of its own, so run
-`python PF_position_park.py --download --fullyear` once first. Figure B of
+`--fullyear` is a sensitivity test on the averaging period: the contour is
+normally read from the ADT averaged over the advection window, early June to
+early December, and `--fullyear` reads it from the ADT averaged over the
+calendar year instead. Nothing else changes, so whatever moves between the two
+is the averaging period and only that -- does the contour sit where it does
+because of the circulation, or because of the months we chose to look at? It
+keeps a cache of its own, so run `python PF_position_park.py --download
+--fullyear` once first; results go to `ROOT/output/fullyear/`. Figure B of
 `08_front_maps_by_year.R` is the comparison of the two, and is skipped with a
 message when `--fullyear` has not been run.
 
