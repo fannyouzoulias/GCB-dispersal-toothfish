@@ -12,7 +12,7 @@
 #   FIGURE A  fronts_by_year.png
 #             the three lines of 09, no density: the annual northern limit of
 #             Winter Water (black), the climatological PF of Park & Durand
-#             (2019) (black dashed) and the PF-associated ADT streamline (blue).
+#             (2019) (black dashed) and the annual PF streamline (blue).
 #
 #   FIGURE B  fronts_by_year_jet_window_vs_fullyear.png
 #             the ADT streamline alone, in its two versions: contoured on the
@@ -142,7 +142,7 @@ plate <- function(layers, key, col, lty) {
 ## ---------------------------------------------------------------------------
 keyA <- c(annual = "Annual northern limit of Winter Water",
           clim   = "Climatological Polar Front (Park & Durand, 2019)",
-          jet    = "PF-associated ADT streamline")
+          jet    = "Annual PF streamline")
 colA <- set_names(c("black", "black", "#0072B2"), keyA)
 ltyA <- set_names(c("solid", "42", "solid"), keyA)
 
@@ -168,8 +168,8 @@ if (!has_full) {
   message("Figure B skipped: run advection/PF_position_park.py --fullyear first ",
           "(expected in ", dir_full, ")")
 } else {
-  keyB <- c(win  = "PF-associated ADT streamline (advection window, weeks 23-31 + 18)",
-            full = "PF-associated ADT streamline (whole calendar year)")
+  keyB <- c(win  = "Annual PF streamline (advection window, weeks 23-31 + 18)",
+            full = "Annual PF streamline (whole calendar year)")
   colB <- set_names(c("#0072B2", "#D55E00"), keyB)
   ltyB <- set_names(c("solid", "solid"), keyB)
 

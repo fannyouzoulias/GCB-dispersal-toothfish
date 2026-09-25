@@ -7,11 +7,12 @@
 # recruitment sectors. A Gaussian GLM on log R is a lognormal model on R, so the
 # fitted relationship is exponential on the original scale: R = exp(a + b z).
 #
-#   - log R against standardized PF intensity  (main figure, and Table A3)
-#   - log R against standardized SAF intensity (Table A4)
+#   - log R against standardized PF-associated jet intensity (main figure, Table S3)
+#   - log R against standardized SAF intensity (Table S4)
 #   - regression diagnostics of the PF model
 #
-# The PF intensity is PF_park_cm_s, sampled along the front OF THAT YEAR: the
+# The PF-associated jet intensity is PF_park_cm_s, sampled along the annual PF
+# streamline, i.e. the front OF THAT YEAR: the
 # correction made at revision, see the header of 05_front_indices.R. The
 # manuscript used PF_mean_cm_s, the climatological contour, which is still
 # written out by 05; 10_pf_park_intensity_glm.R fits both and shows the
@@ -48,7 +49,7 @@ message("PF model: R2 = ", round(r2, 3), ", adjusted R2 = ", round(r2_adj, 3))
 m_saf <- glm(logR ~ z_SAF, data = dat, family = gaussian())
 summary(m_saf)
 
-## Main figure: effect of PF intensity on retention ----------------------------
+## Main figure: effect of PF-associated jet intensity on retention -------------
 grid <- tibble(z_PF = seq(min(dat$z_PF), max(dat$z_PF), length.out = 200))
 pred <- predict(m_pf, newdata = grid, se.fit = TRUE)
 
@@ -63,7 +64,7 @@ p_pf_effect <- ggplot(dat, aes(x = z_PF, y = Recruited_total)) +
   geom_line(data = grid, aes(x = z_PF, y = fit_R),
             linewidth = 1.1, inherit.aes = FALSE) +
   geom_point(size = 2.6, alpha = 0.9) +
-  labs(x = "Polar Front intensity", y = "Number of \nlarvae retained") +
+  labs(x = "PF-associated jet intensity (standardised)", y = "Number of \nlarvae retained") +
   theme_paper() +
   theme(panel.grid = element_blank())
 

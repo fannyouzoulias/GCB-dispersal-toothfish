@@ -1,9 +1,20 @@
 """
-Annual PF-associated ADT streamline around Kerguelen.
+Annual PF streamline around Kerguelen.
 
-The Polar Front (PF) is a hydrographic boundary. This script derives an annual
-ADT streamline associated with the PF, using the climatological PF and the
-Kerguelen pathway constraint described by Park et al. (2019).
+The Polar Front (PF) is a hydrographic boundary. This script derives, for each
+year, the ADT streamline associated with the PF (the annual PF streamline),
+using the climatological PF and the Kerguelen pathway constraint described by
+Park et al. (2019), and the PF-associated jet intensity: the mean surface
+geostrophic current speed along that streamline.
+
+THE KERGUELEN CONSTRAINT. Park et al. (2019, p. 4516-4517): the PF streamline
+"should round the Kerguelen Islands (49 S, 70 E) from the south (not north),
+hugging the southern and eastern escarpments (500- to 1,000-m isobaths)". It is
+applied every year: the reference contour is kept when its 69 E crossing lies
+on the 500-1000 m escarpment south of the islands; otherwise the value kept is
+the one nearest to the reference, above or below it (1 mm steps, at most 5 cm),
+whose 69 E crossing does. A lower value moves the line south, a higher one
+north.
 
 Downloads with --download:
   1. CNES-CLS22 MDT: `mdt`
@@ -35,6 +46,16 @@ Options:
                 first. Results go to ROOT/output/fullyear/, beside the window
                 ones; 08_front_maps_by_year.R plots the two against each
                 other.
+  --south-only  the previous, weaker form of the Kerguelen constraint, kept
+                as a sensitivity test.
+
+                The constraint is then applied only when the reference contour
+                does NOT round the islands from the south, and the value is
+                only lowered. A contour that rounds them from the south but
+                well off the escarpment (2012, 2017: 69 E crossed at ~50.9 S,
+                50 km south of it) is kept as it is.
+
+                Results go to ROOT/output/south_only/.
 
 """
 
@@ -82,7 +103,7 @@ BATHY_DATASET = "cmems_mod_glo_phy_my_0.083deg_static"
 
 ACC_BAND = (-56.0, -46.0)       # regional level removed from daily ADT
 SMOOTH = 1.5                    # grid cells
-SPEED_BAND = (67.0, 72.0)       # sector used for PF-associated current intensity
+SPEED_BAND = (67.0, 72.0)       # sector used for the PF-associated jet intensity
 ISLAND_LON = 69.0
 ISLAND_LAT = (-49.8, -48.6)
 ISOBATHS = (500.0, 1000.0)
@@ -93,6 +114,7 @@ XLIM, YLIM = (60.0, 85.0), (-54.0, -44.0)
 DISPLACED_YEARS = (2012, 2013, 2017, 2023)  # flagged in the figure
 
 FULLYEAR = "--fullyear" in sys.argv
+SOUTH_ONLY = "--south-only" in sys.argv
 
 # The DUACS cache is the bulky part, ~1.5 GB per averaging period. Point
 # PF_DUACS_DIR at it if you already downloaded it elsewhere (one folder per
@@ -103,6 +125,8 @@ YEAR_DIR = Path(
     )
 )
 OUT = ROOT / "output" / "fullyear" if FULLYEAR else ROOT / "output"
+if SOUTH_ONLY:
+    OUT = OUT / "south_only"
 MDT_FILE = ROOT / "cnes_cls22_mdt.nc"
 BATHY_FILE = ROOT / "glorys12_deptho.nc"
 PARK_FILE = ROOT / "park_durand_2019_ACC_fronts.nc"
@@ -325,9 +349,9 @@ LAT_1000 = isobath_lat(ISOBATHS[1])
 
 def on_escarpment(line):
     """
-    Kerguelen constraint used when the reference contour rounds the islands
-    from the north: all 69 E crossings must be south of the islands, and the
-    nearest crossing must lie on the 500-1000 m escarpment (± one grid cell).
+    Kerguelen constraint: all 69 E crossings must be south of the islands,
+    and the nearest crossing must lie on the 500-1000 m escarpment (± one grid
+    cell).
     """
     c = crossings(line, ISLAND_LON)
     return (
@@ -349,8 +373,54 @@ print(
     f"accepted {LAT_1000 - TOL:.2f} to {LAT_500 + TOL:.2f}"
 )
 
+def select_streamline(field, label):
+    """
+    The reference contour, kept when it lies on the Kerguelen escarpment;
+    otherwise the nearest contour, above or below, that does. With
+    --south-only: the reference contour, kept when it rounds Kerguelen from the
+    south, otherwise the nearest LOWER contour on the escarpment. Returns
+    (line, reference contour, shift in m).
+    """
+    fixed = contour_line(field, PF_VALUE, lon, lat)
+    shift = 0.0
+
+    if not SOUTH_ONLY:
+        # Nearest value, above or below the reference, on the escarpment.
+        if not on_escarpment(fixed):
+            for delta in np.arange(STEP, MAX_SHIFT + STEP / 2, STEP):
+                hit = [
+                    sign * delta
+                    for sign in (-1, 1)
+                    if on_escarpment(contour_line(field, PF_VALUE + sign * delta, lon, lat))
+                ]
+                if hit:
+                    shift = hit[0]
+                    break
+            else:
+                print(
+                    f"{label}: no contour within {100 * MAX_SHIFT:.0f} cm lies on "
+                    "the escarpment; keeping the reference contour"
+                )
+    elif side_of_islands(crossings(fixed, ISLAND_LON)) != "south":
+        for delta in np.arange(STEP, MAX_SHIFT + STEP / 2, STEP):
+            candidate = contour_line(field, PF_VALUE - delta, lon, lat)
+            if on_escarpment(candidate):
+                shift = -delta
+                break
+        else:
+            print(
+                f"{label}: no contour within {100 * MAX_SHIFT:.0f} cm satisfies "
+                "the Kerguelen constraint; keeping the reference contour"
+            )
+
+    line = contour_line(field, PF_VALUE + shift, lon, lat) if shift else fixed
+    return line, fixed, shift
+
+
 rows = []
 lines = {}
+# Window-mean fields of every year, for the climatology written after the loop.
+stack_adt, stack_u, stack_v = [], [], []
 
 for year in YEARS:
     path = need(
@@ -380,31 +450,16 @@ for year in YEARS:
     )
 
     field = gaussian_filter(fill_land(annual_adt), SMOOTH)
-
-    fixed = contour_line(field, PF_VALUE, lon, lat)
-    shift = 0.0
-
-    # Keep the reference contour when it already rounds Kerguelen from the south.
-    # Otherwise move to the nearest lower contour satisfying the Park et al.
-    # topographic pathway constraint.
-    if side_of_islands(crossings(fixed, ISLAND_LON)) != "south":
-        for delta in np.arange(STEP, MAX_SHIFT + STEP / 2, STEP):
-            candidate = contour_line(field, PF_VALUE - delta, lon, lat)
-            if on_escarpment(candidate):
-                shift = -delta
-                break
-        else:
-            print(
-                f"{year}: no contour within {100 * MAX_SHIFT:.0f} cm satisfies "
-                "the Kerguelen constraint; keeping the reference contour"
-            )
-
-    line = contour_line(field, PF_VALUE + shift, lon, lat) if shift else fixed
+    line, fixed, shift = select_streamline(field, year)
 
     # Strength of the time-mean geostrophic current over the same advection window.
     mean_u = w.ugos.mean("time").values.astype(float)
     mean_v = w.vgos.mean("time").values.astype(float)
     mean_speed = np.hypot(mean_u, mean_v) * 100.0  # cm/s
+
+    stack_adt.append(annual_adt)
+    stack_u.append(mean_u)
+    stack_v.append(mean_v)
 
     speed_at = RegularGridInterpolator(
         (lat, lon), mean_speed, bounds_error=False, fill_value=np.nan
@@ -445,7 +500,7 @@ for year in YEARS:
         f"{100 * record['adt_contour_m']:6.2f} cm "
         f"({record['contour_shift_cm']:+.1f}); "
         f"{record['side_selected_streamline']:5s} of Kerguelen; "
-        f"PF-associated current {record['pf_associated_current_cm_s']:.1f} cm/s"
+        f"PF-associated jet intensity {record['pf_associated_current_cm_s']:.1f} cm/s"
     )
 
     w.close()
@@ -466,10 +521,45 @@ print(
     f"{(summary.side_selected_streamline == 'south').sum()} / {len(summary)}"
 )
 print(
-    f"PF-associated current, {SPEED_BAND[0]:.0f}-{SPEED_BAND[1]:.0f} E: "
+    f"PF-associated jet intensity, {SPEED_BAND[0]:.0f}-{SPEED_BAND[1]:.0f} E: "
     f"median {summary.pf_associated_current_cm_s.median():.1f} cm/s, "
     f"range {summary.pf_associated_current_cm_s.min():.1f}-"
     f"{summary.pf_associated_current_cm_s.max():.1f}"
+)
+
+
+# ---------------------------------------------------------------------------
+# Climatology
+# ---------------------------------------------------------------------------
+# The same streamline, read from the mean of the annual window-mean ADT fields,
+# every year weighing the same. Drawn instead of the published Park & Durand
+# (2019) PF on the trajectory maps of larval_dispersal/02.
+clim_adt = np.nanmean(np.stack(stack_adt), axis=0)
+clim_field = gaussian_filter(fill_land(clim_adt), SMOOTH)
+clim_line, clim_fixed, clim_shift = select_streamline(clim_field, "climatology")
+
+clim_speed = np.hypot(
+    np.nanmean(np.stack(stack_u), axis=0), np.nanmean(np.stack(stack_v), axis=0)
+) * 100.0
+clim_speed_at = RegularGridInterpolator(
+    (lat, lon), clim_speed, bounds_error=False, fill_value=np.nan
+)
+
+pd.DataFrame(
+    {
+        "lon": clim_line[:, 0],
+        "lat": clim_line[:, 1],
+        "mean_current_speed_cm_s": clim_speed_at(clim_line[:, ::-1]),
+        "depth_m": depth_at(clim_line[:, ::-1]),
+    }
+).to_csv(OUT / f"pf_park_climatology_{YEARS[0]}-{YEARS[-1]}.csv", index=False)
+
+print(
+    f"\nClimatology {YEARS[0]}-{YEARS[-1]}: contour "
+    f"{100 * (PF_VALUE + clim_shift):.2f} cm ({100 * clim_shift:+.1f}); "
+    f"{side_of_islands(crossings(clim_line, ISLAND_LON))} of Kerguelen; "
+    "69 E at "
+    + "/".join(f"{v:.2f}" for v in crossings(clim_line, ISLAND_LON))
 )
 
 
@@ -566,14 +656,14 @@ for ax in axes.ravel()[len(list(YEARS)) :]:
 
 fig.subplots_adjust(top=0.94, bottom=0.075, left=0.04, right=0.98)
 fig.suptitle(
-    "Annual PF-associated ADT streamline around Kerguelen\n"
-    f"(larval-advection window: weeks {w0}-{w1} + {nadv} weeks)",
+    "Annual PF streamline around Kerguelen\n"
+    f"(larval-advection window: weeks {WINDOW[0]}-{WINDOW[1]} + {WINDOW[2]} weeks)",
     fontsize=12,
     y=0.99,
 )
 
 handles = [
-    Line2D([], [], color=STREAM, lw=2.4, label="annual PF-associated ADT streamline"),
+    Line2D([], [], color=STREAM, lw=2.4, label="annual PF streamline"),
     Line2D(
         [],
         [],

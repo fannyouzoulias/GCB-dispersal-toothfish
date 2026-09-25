@@ -16,10 +16,10 @@
 #   I_ww      mean speed along that year's Winter Water edge
 #   I_park    mean speed along that year's ADT contour (the index now used)
 #
-# All three are restricted to 67-72 E. The lat >= -51 cut of the manuscript
-# index is NOT a band selection: it picks the Kerguelen branch of a contour
-# that wanders, and so it applies to the two CONTOURS, not to the Winter Water
-# edge:
+# All three are restricted to 67-72 E. The 51-48 S cut of the manuscript
+# index (the sector of the Methods, and the box of 05) picks the Kerguelen
+# branch of a contour that wanders, and so it applies to the two CONTOURS, not
+# to the Winter Water edge:
 #
 #   I_static  cut: the climatological contour loops
 #   I_park    cut: the ADT contour loops down to 52-54 S west of the islands in
@@ -73,7 +73,7 @@ if (!exists("theme_paper")) theme_paper <- function() theme_bw(base_size = 13)
 
 years       <- 2000:2023
 south_years <- c(2012, 2013, 2017, 2023)
-LON_MIN <- 67; LON_MAX <- 72; LAT_MIN <- -51
+LON_MIN <- 67; LON_MAX <- 72; LAT_MIN <- -51; LAT_MAX <- -48
 cols <- c(other = "#2166ac", displaced = "#b2182b")
 
 ## ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ sample_field <- function(f, lon, lat) {
 index_along <- function(tab, y) {
   b <- filter(tab, lon >= LON_MIN, lon <= LON_MAX)
   s <- sample_field(fields[[as.character(y)]], b$lon, b$lat)
-  bc <- b$lat >= LAT_MIN
+  bc <- b$lat >= LAT_MIN & b$lat <= LAT_MAX
   tibble(Year = y,
          I              = mean(s[bc], na.rm = TRUE),
          I_nocut        = mean(s,     na.rm = TRUE),
@@ -166,7 +166,7 @@ write_csv(dat, file.path(rev_dir, "pf_park_intensity_annual.csv"))
 ## ---------------------------------------------------------------------------
 idx <- c(I_static = "Climatological PF (manuscript)",
          I_ww     = "Annual Winter Water edge",
-         I_park   = "Annual ADT contour (Park)")
+         I_park   = "Annual PF streamline (Park)")
 
 agreement <- map_dfr(c("I_ww", "I_park"), function(v) {
   pe <- cor.test(dat$I_static, dat[[v]])
@@ -227,7 +227,7 @@ p_fit <- ggplot(long, aes(z, Recruited_total)) +
             vjust = 1.15, size = 3.4, inherit.aes = FALSE) +
   facet_wrap(~ panel, nrow = 1) +
   scale_colour_manual(values = cols, guide = "none") +
-  labs(x = "Polar Front intensity (standardised)",
+  labs(x = "Mean surface geostrophic current speed along the path (standardised)",
        y = "Number of larvae retained") +
   theme_paper()
 
@@ -241,7 +241,7 @@ p_scatter <- ggplot(dat, aes(I_static, I_park)) +
                   min.segment.length = 0) +
   scale_colour_manual(values = cols, guide = "none") +
   labs(x = "Intensity along the climatological PF (cm/s)",
-       y = "Intensity along the\nannual ADT contour (cm/s)") +
+       y = "PF-associated jet intensity\n(annual PF streamline, cm/s)") +
   theme_paper()
 
 p <- p_fit / p_scatter + plot_layout(heights = c(1, 1)) +

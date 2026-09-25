@@ -17,7 +17,7 @@
 #                                           10_pf_park_intensity_glm.R can show
 #                                           what the correction changes
 #
-# Both are averaged over the same sector, 67-72 E and lat >= -51, so the PATH
+# Both are averaged over the same sector, 67-72 E and 51-48 S, so the PATH
 # is the only difference between them.
 #
 #   - map of the front positions and of the sector they are averaged over (appendix)
@@ -36,11 +36,14 @@
 col_pf  <- "#4575b4"
 col_saf <- "#1b9e77"
 
-# The sector the PF index is averaged over. The latitude cut keeps the branch
-# that runs along the northern plateau: the annual contour loops south of 51 S
-# west of the islands in some years.
+# The sector the PF index is averaged over, 67-72 E and 51-48 S as stated in
+# the Methods. The southern cut keeps the branch that runs along the northern
+# plateau: the annual contour loops south of 51 S west of the islands in some
+# years. The northern cut stops the index at the box drawn on the map: without
+# it, the rise of the contour to ~47 S at 71-72 E was averaged in too.
 LON_BAND <- c(67, 72)
 LAT_MIN  <- -51
+LAT_MAX  <- -48
 
 ## Front points, long format ---------------------------------------------------
 # Each row is a point along the climatological front; the columns named
@@ -81,17 +84,18 @@ pf_park_pts <- purrr::map2_dfr(f_park, years_pf, function(f, y) {
 ## Appendix figure: front positions and averaging sectors ----------------------
 # The two boxes are the sectors the yearly speeds are averaged over: the PF
 # where it runs along the northern plateau, the SAF further north. Grey lines
-# are the annual PF contours the index is sampled along, brown points the
-# climatological front of the manuscript.
-box_pf  <- tibble(xmin = LON_BAND[1], xmax = LON_BAND[2], ymin = LAT_MIN, ymax = -48)
+# are the annual PF contours the index is sampled along, the brown line their
+# 2000-2023 climatology (same method, ADT averaged over the advection windows;
+# see 00_setup.R), blue points the climatological SAF of Park & Durand (2019).
+box_pf  <- tibble(xmin = LON_BAND[1], xmax = LON_BAND[2], ymin = LAT_MIN, ymax = LAT_MAX)
 box_saf <- tibble(xmin = 63, xmax = 73, ymin = -47, ymax = -44)
 
 p_fronts <- ggplot() +
   geom_sf(data = land_sf, fill = "darkgrey", inherit.aes = FALSE) +
   geom_path(data = pf_park_pts, aes(lon, lat, group = Year),
             colour = "grey55", linewidth = 0.3, alpha = 0.7) +
-  geom_point(data = pf_long,  aes(lon, lat), size = 0.8, alpha = 0.9,
-             colour = "brown4") +
+  geom_path(data = filter(front_df, Front == "Polar Front"), aes(lon, lat),
+            colour = "brown4", linewidth = 1) +
   geom_point(data = saf_long, aes(lon, lat), size = 0.8, alpha = 0.9,
              colour = "blue3") +
   geom_rect(data = box_saf, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -106,13 +110,13 @@ save_fig("fronts_PF_SAF.png", p_fronts, width = 8, height = 6)
 
 ## Annual PF index, along the front of that year (the index) -------------------
 pf_park_index <- pf_park_pts %>%
-  filter(lon >= LON_BAND[1], lon <= LON_BAND[2], lat >= LAT_MIN) %>%
+  filter(lon >= LON_BAND[1], lon <= LON_BAND[2], lat >= LAT_MIN, lat <= LAT_MAX) %>%
   group_by(Year) %>%
   summarise(PF_park_cm_s = mean(speed, na.rm = TRUE), .groups = "drop")
 
 ## Annual PF index, along the climatological front (the manuscript) ------------
 pf_index <- pf_long %>%
-  filter(lon >= LON_BAND[1], lon <= LON_BAND[2], lat >= LAT_MIN) %>%
+  filter(lon >= LON_BAND[1], lon <= LON_BAND[2], lat >= LAT_MIN, lat <= LAT_MAX) %>%
   group_by(Year) %>%
   summarise(PF_mean_cm_s = mean(intensity_pf, na.rm = TRUE), .groups = "drop")
 
@@ -151,7 +155,7 @@ plot_index <- function(df, y, ylab, colour) {
 
 save_fig("pf_mean_intensity.png",
          plot_index(front_indices, "PF_park_cm_s",
-                    "Polar Front mean intensity (cm/s)\n(67-72 E)", col_pf),
+                    "PF-associated jet intensity (cm/s)\n(67-72 E, 51-48 S)", col_pf),
          width = 10, height = 6)
 
 # The manuscript index, for the comparison drawn by 10_pf_park_intensity_glm.R.

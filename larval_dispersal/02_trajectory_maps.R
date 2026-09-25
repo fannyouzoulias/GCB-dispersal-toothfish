@@ -6,7 +6,8 @@
 #   A) all years
 #   B) low-retention years  (2010, 2015, 2023)
 #   C) high-retention years (2000, 2016, 2022)
-# The mean positions of the Polar Front and Subantarctic Front are overlaid.
+# The mean position of the Polar Front (our 2000-2023 climatology over the
+# advection windows, see 00_setup.R) is overlaid.
 #
 #
 # Requires: 00_setup.R, 01_load_trajectories.R

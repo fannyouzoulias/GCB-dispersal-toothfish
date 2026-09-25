@@ -74,11 +74,15 @@ land_sf <- rbind(
 recruitment_zones <- st_read(dpath("zones_recruitment.geojson"), quiet = TRUE)
 spawning_zones    <- st_read(dpath("zones_spawning.geojson"),    quiet = TRUE)
 
-# Mean positions of the Polar Front (PF) and Subantarctic Front (SAF), read from
-# the same files that carry the yearly intensities.
+# Mean positions of the Polar Front (PF) and Subantarctic Front (SAF).
+# PF: our 2000-2023 climatology, the annual PF streamline of
+# advection/PF_position_park.py (Park et al. 2019 method) read from the ADT
+# averaged over the advection windows. SAF: Park & Durand (2019), from the file
+# that carries its yearly intensities.
 front_df <- bind_rows(
-  read_csv(dpath("front_intensity_PF.csv"), show_col_types = FALSE) %>%
-    dplyr::select(lon = `Lon PF`, lat = `Lat PF`) %>%
+  read_csv(file.path(park_dir, "pf_park_climatology_2000-2023.csv"),
+           show_col_types = FALSE) %>%
+    dplyr::select(lon, lat) %>%
     mutate(Front = "Polar Front"),
   read_csv(dpath("front_intensity_SAF.csv"), show_col_types = FALSE) %>%
     dplyr::select(lon = `Lon SAF`, lat = `Lat SAF`) %>%
@@ -87,15 +91,16 @@ front_df <- bind_rows(
   filter(!is.na(lon), !is.na(lat))
 
 
+# The trajectory maps of 02 draw the PF only; front_df keeps the SAF for 05.
+PF_CLIM_LABEL <- "Mean PF streamline (2000-2023)"
+pf_map_df <- filter(front_df, Front == "Polar Front") %>% mutate(Front = PF_CLIM_LABEL)
+
 front_layers <- list(
-  geom_path(data = front_df, aes(x = lon, y = lat, group = Front),
+  geom_path(data = pf_map_df, aes(x = lon, y = lat, group = Front),
             colour = "white", linewidth = 1.4, inherit.aes = FALSE),
-  geom_path(data = front_df, aes(x = lon, y = lat, linetype = Front, group = Front),
+  geom_path(data = pf_map_df, aes(x = lon, y = lat, linetype = Front, group = Front),
             colour = "black", linewidth = 0.7, inherit.aes = FALSE),
-  scale_linetype_manual(
-    name   = "Front",
-    values = c("Polar Front" = "solid", "Subantarctic Front" = "dashed")
-  )
+  scale_linetype_manual(name = NULL, values = set_names("solid", PF_CLIM_LABEL))
 )
 
 ## Helpers ---------------------------------------------------------------

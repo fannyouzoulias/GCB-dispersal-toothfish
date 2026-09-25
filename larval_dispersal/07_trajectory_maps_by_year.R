@@ -43,14 +43,25 @@ suppressPackageStartupMessages({
 #             above 0.8), recomputed by 10_pf_position_azarian.R -- smoothed
 #             copy, because the raw edge steps by several degrees between
 #             neighbouring longitudes
-PF_SOURCE <- "sent"
+# Each switch can be set before sourcing this script; these are the defaults.
+if (!exists("PF_SOURCE")) PF_SOURCE <- "sent"
+
+# Draw the annual Winter Water edge (black) of PF_SOURCE.
+if (!exists("SHOW_WW")) SHOW_WW <- TRUE
 
 # Also draw the climatological PF (dashed) in every panel.
-SHOW_STATIC <- TRUE
+if (!exists("SHOW_STATIC")) SHOW_STATIC <- TRUE
 
 # Also draw the PF jet of each year (blue), from advection/PF_position_park.py.
 # Its folder is `park_dir`, set in config.R.
-SHOW_PARK_JET <- TRUE
+if (!exists("SHOW_PARK_JET")) SHOW_PARK_JET <- TRUE
+
+# Legend label of that jet.
+if (!exists("JET_LABEL")) JET_LABEL <- "Annual PF streamline"
+
+# Write the intensity and mean latitude of the jet in the sector of the PF
+# index (67-72 E, 51-48 S, as 05) in each panel title. Needs SHOW_PARK_JET.
+if (!exists("SHOW_PF_STATS")) SHOW_PF_STATS <- FALSE
 
 dir_pos <- switch(PF_SOURCE,
   sent    = ww_dir,
@@ -174,31 +185,40 @@ pf_clim <- read_csv(pick("front_intensity_PF.csv"), show_col_types = FALSE) %>%
   filter(!is.na(lon), !is.na(lat))
 
 # PF jet of the year: the ADT streamline of Park et al. (2019), levelled, with
-# the Kerguelen constraint (value lowered in 2000, 2002, 2009, 2014 and 2020).
+# the Kerguelen constraint applied every year (see advection/PF_position_park.py).
 # Written in path order, west to east.
 if (SHOW_PARK_JET) {
   jet_year <- map_dfr(years, function(y) {
     read_csv(file.path(park_dir, sprintf("pf_park_%d.csv", y)),
              show_col_types = FALSE) %>%
-      dplyr::select(lon, lat) %>%
+      dplyr::select(lon, lat, speed = mean_current_speed_cm_s) %>%
       mutate(Year = y)
   })
+  jet_stats <- jet_year %>%
+    filter(between(lon, 67, 72), between(lat, -51, -48)) %>%
+    group_by(Year) %>%
+    summarise(I = mean(speed, na.rm = TRUE), lat_mean = mean(lat), .groups = "drop")
 }
 
 front_key <- c(annual = "Annual northern limit of Winter Water",
                clim   = "Climatological Polar Front (Park & Durand, 2019)",
-               jet    = "PF-associated ADT streamline")
+               jet    = JET_LABEL)
 front_col <- set_names(c("black", "black", "#0072B2"), front_key)
 front_lty <- set_names(c("solid", "42", "solid"), front_key)
 # unnamed: ggplot takes the names of the breaks as labels
-shown     <- unname(front_key[c(TRUE, SHOW_STATIC, SHOW_PARK_JET)])
+shown     <- unname(front_key[c(SHOW_WW, SHOW_STATIC, SHOW_PARK_JET)])
 front_guide <- function(...) guide_legend(order = 1, direction = "vertical",
                                           keywidth = unit(2.5, "cm"), ...)
 
 ## ---------------------------------------------------------------------------
 ## PART 3. Panel labels
 ## ---------------------------------------------------------------------------
-to_lab <- function(df) mutate(df, panel = factor(Year, levels = years))
+panel_lab <- if (SHOW_PARK_JET && SHOW_PF_STATS) {
+  with(jet_stats[match(years, jet_stats$Year), ],
+       sprintf("%d   %.1f cm/s, %.2f°S", years, I, -lat_mean))
+} else as.character(years)
+to_lab <- function(df) mutate(df, panel = factor(panel_lab[match(Year, years)],
+                                                 levels = panel_lab))
 
 grid_by_year <- to_lab(grid_by_year)
 pf_year      <- to_lab(pf_year)
@@ -228,10 +248,11 @@ p_year <- ggplot() +
       geom_path(data = jet_year, aes(lon, lat, group = Year, linetype = front_key[["jet"]],
                                      colour = front_key[["jet"]]), linewidth = 0.85)) } +
   # front of the year, with a white halo so it reads over the colours
-  geom_path(data = pf_year, aes(lon, lat, group = Year),
-            colour = "white", linewidth = 1.1) +
-  geom_path(data = pf_year, aes(lon, lat, group = Year, linetype = front_key[["annual"]],
-                                colour = front_key[["annual"]]), linewidth = 0.45) +
+  { if (SHOW_WW) list(
+      geom_path(data = pf_year, aes(lon, lat, group = Year),
+                colour = "white", linewidth = 1.1),
+      geom_path(data = pf_year, aes(lon, lat, group = Year, linetype = front_key[["annual"]],
+                                    colour = front_key[["annual"]]), linewidth = 0.45)) } +
   # colour and line type share one legend: same name, breaks and guide
   scale_colour_manual(name = NULL, values = front_col, breaks = shown,
                       guide = front_guide(override.aes = list(linewidth = 1.2))) +
@@ -251,11 +272,14 @@ p_year <- ggplot() +
   labs(x = "Longitude", y = "Latitude") +
   theme_bw() + theme_paper() +
   theme(legend.position = "bottom", legend.box = "horizontal",
-        panel.spacing.x = unit(1.8, "lines"))
+        panel.spacing.x = unit(1.8, "lines")) +
+  # the longer titles of SHOW_PF_STATS need a smaller strip font
+  { if (SHOW_PF_STATS) theme(strip.text = element_text(size = 15)) }
 
-fig_name <- sprintf("trajectories_by_year_with_front_%s%s%s.png", PF_SOURCE,
-                    if (SHOW_STATIC) "_and_static" else "",
-                    if (SHOW_PARK_JET) "_park_jet" else "")
+fig_name <- paste0("trajectories_by_year_with",
+                   if (SHOW_WW) paste0("_front_", PF_SOURCE) else "",
+                   if (SHOW_STATIC) (if (SHOW_WW) "_and_static" else "_static") else "",
+                   if (SHOW_PARK_JET) "_park_jet" else "", ".png")
 ggsave(file.path(rev_fig, fig_name), p_year,
        width = 17, height = 18, dpi = 250, limitsize = FALSE)
 

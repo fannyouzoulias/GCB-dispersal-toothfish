@@ -13,18 +13,18 @@ The workflow combines:
 1. spatial models of female abundance, length and fecundity;
 2. Lagrangian simulations of the 18-week pelagic larval phase;
 3. estimates of larval retention and recruitment;
-4. analyses of their relationship with Polar Front intensity.
+4. analyses of their relationship with the PF-associated jet intensity.
 
 ## Important note
 
-One result differs slightly from the manuscript.
+The Polar Front index was revised during the second revision.
 
-In this repository, Polar Front intensity is sampled along the front position of each year rather than along a fixed climatological front.
+The PF-associated jet intensity is the mean surface geostrophic current speed along the annual PF streamline (the Polar Front of each year, reconstructed following Park et al. 2019 with their Kerguelen escarpment constraint applied every year), within 67-72°E and 48-51°S. The first submission sampled the speed along a fixed climatological front instead.
 
 The relationship remains negative and significant:
 
-- repository: slope = -0.167, p = 0.014
-- manuscript: slope = -0.180, p = 0.007
+- revised index (this repository): slope = -0.160, p = 0.019, R² = 0.23
+- first submission (fixed climatological front): slope = -0.180, p = 0.007
 
 See:
 
@@ -80,7 +80,7 @@ The simulation uses:
 
 The `advection/` folder also contains scripts used to reconstruct annual Polar Front positions and environmental fields.
 
-`PF_position_park.py` reconstructs the annual Polar Front following Park et al. (2019) and provides the front used for the main intensity index.
+`PF_position_park.py` reconstructs the annual PF streamline following Park et al. (2019) and provides the front used for the main intensity index. It writes one streamline per year (`pf_park_<year>.csv`, with the current speed along it), an annual table, and the 2000-2023 mean streamline (`pf_park_climatology_2000-2023.csv`) drawn on the trajectory maps of `02_trajectory_maps.R`.
 
 Set `ROOT` in the script or define `PF_PARK_ROOT`, then run:
 
@@ -91,6 +91,8 @@ python PF_position_park.py
 
 The Park & Durand front file must be downloaded separately from DOI `10.17882/59800`.
 
+Two sensitivity tests are available: `--fullyear` (ADT averaged over the calendar year instead of the advection window) and `--south-only` (the previous, weaker form of the Kerguelen constraint).
+
 ### 3. Larval dispersal
 
 Run the scripts in `larval_dispersal/` in numerical order.
@@ -100,7 +102,7 @@ The main workflow:
 1. builds and weights larval trajectories;
 2. calculates dispersal and retention metrics;
 3. derives annual front-intensity indices;
-4. models retention as a function of Polar Front intensity.
+4. models retention as a function of the PF-associated jet intensity.
 
 Scripts `07` to `10` contain additional analyses added during manuscript revision.
 
