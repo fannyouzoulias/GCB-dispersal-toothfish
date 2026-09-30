@@ -42,6 +42,13 @@ dpath <- function(...) file.path(data_dir, ...)
 #   t200_dir    the GLORYS12 temperature at 200 m, written by
 #               advection/download_glorys_T200_kerguelen.py (its OUT_DIR).
 #               Only 09 reads it.
+## Southern Annular Mode -------------------------------------------------------
+# Folder holding SAM_annual_2000_2023.csv (year, SAM_annual) and
+# SAM_seasonal_2000_2023.csv (year, season, SAM_season), built from the
+# monthly station-based index of Marshall (2003),
+# https://legacy.bas.ac.uk/met/gjma/sam.html. Only 12 reads it.
+sam_dir <- "SAM"
+
 front_dir  <- "fronts"
 park_dir   <- file.path(front_dir, "park")
 ww_dir     <- file.path(front_dir, "winter_water")

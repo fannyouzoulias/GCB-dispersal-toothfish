@@ -15,22 +15,8 @@ The workflow combines:
 3. estimates of larval retention and recruitment;
 4. analyses of their relationship with the PF-associated jet intensity.
 
-## Important note
+The PF-associated jet intensity is the mean surface geostrophic current speed along the annual PF streamline (the Polar Front of each year, reconstructed following Park et al. 2019 with their Kerguelen escarpment constraint applied every year), within 67-72°E and 48-51°S. 
 
-The Polar Front index was revised during the second revision.
-
-The PF-associated jet intensity is the mean surface geostrophic current speed along the annual PF streamline (the Polar Front of each year, reconstructed following Park et al. 2019 with their Kerguelen escarpment constraint applied every year), within 67-72°E and 48-51°S. The first submission sampled the speed along a fixed climatological front instead.
-
-The relationship remains negative and significant:
-
-- revised index (this repository): slope = -0.160, p = 0.019, R² = 0.23
-- first submission (fixed climatological front): slope = -0.180, p = 0.007
-
-See:
-
-- `larval_dispersal/05_front_indices.R`
-- `larval_dispersal/06_retention_front_glm.R`
-- `larval_dispersal/10_pf_park_intensity_glm.R`
 
 ## Repository structure
 
@@ -104,7 +90,7 @@ The main workflow:
 3. derives annual front-intensity indices;
 4. models retention as a function of the PF-associated jet intensity.
 
-Scripts `07` to `10` contain additional analyses added during manuscript revision.
+Scripts `07` to `13` contain additional analyses added during manuscript revision. `11_trajectory_reentry.R` answers the question of whether retention rises with the simulated duration because particles leave the recruitment areas and come back: it splits the particles inside recruitment habitat at each duration into those that arrived and stayed and those that left and returned. `12_sam_front_correlations.R` gives the numbers of the SAM paragraph: correlations of the annual and seasonal SAM with PF-associated jet and SAF intensities and with larval retention, and the pooled seasonal model. It reads the SAM series from `sam_dir` (`config.R`). `13_recirculation_southern_pathway.R` correlates, year by year, the share of particles trapped in the western recirculation cell with the share advected along the southern PF-associated pathway.
 
 `01_load_trajectories.R` is the most memory-intensive step. Once completed, its saved outputs can be loaded directly:
 

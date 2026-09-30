@@ -188,10 +188,10 @@ zone_share <- function(df, zone_col) {
            Year = factor(as.integer(Year)))
 }
 
-# Annual number of retained eggs, summed over the four main recruitment sectors.
-# The Skiff bank is excluded.
+# Annual number of retained eggs, summed over all suitable recruitment areas
+# (the four shelf sectors and the Skiff bank), as in the manuscript's R_y.
 recruited_annual <- df_join %>%
-  filter(!is.na(Zone_recruitment), Zone_recruitment != "skiff") %>%
+  filter(!is.na(Zone_recruitment)) %>%
   group_by(Year) %>%
   summarise(Recruited_total = sum(Eggs_Released, na.rm = TRUE), .groups = "drop") %>%
   left_join(released_year, by = "Year")

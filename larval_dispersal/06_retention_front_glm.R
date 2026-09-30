@@ -3,8 +3,9 @@
 #
 # Relationship between front intensity and larval retention.
 #
-# The response is the annual number of retained eggs, R, summed over the four
-# recruitment sectors. A Gaussian GLM on log R is a lognormal model on R, so the
+# The response is the annual number of retained eggs, R, summed over all the
+# suitable recruitment areas (the four shelf sectors and the Skiff bank). A
+# Gaussian GLM on log R is a lognormal model on R, so the
 # fitted relationship is exponential on the original scale: R = exp(a + b z).
 #
 #   - log R against standardized PF-associated jet intensity (main figure, Table S3)
