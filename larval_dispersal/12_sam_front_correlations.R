@@ -22,7 +22,7 @@
 # austral summer before that year's spawning; MAM, JJA and SON are within y.
 #
 # The front indices are those of 05 (PF_park_cm_s along the annual PF
-# streamline, SAF_mean_cm_s), and retention is summed over all suitable
+# streamline, SAF_park_cm_s), and retention is summed over all suitable
 # recruitment areas, Skiff Bank included, as in 04.
 #
 # The pooled model treats the four seasons of a year as separate rows, so its
@@ -77,7 +77,7 @@ dat <- read_csv(file.path(out_dir, "front_indices_annual.csv"),
   mutate(logR = log(Recruited_total)) %>%
   filter(Year %in% 2000:2023)
 
-stopifnot(nrow(dat) == 24, !anyNA(dplyr::select(dat, PF_park_cm_s, SAF_mean_cm_s,
+stopifnot(nrow(dat) == 24, !anyNA(dplyr::select(dat, PF_park_cm_s, SAF_park_cm_s,
                                                 SAM_annual, logR, ret_pct)))
 
 cor_row <- function(x, y) {
@@ -91,7 +91,7 @@ cor_row <- function(x, y) {
 ## ---------------------------------------------------------------------------
 sam_vars <- c("SAM_annual", paste0("SAM_", seasons))
 
-cor_fronts <- expand_grid(x = sam_vars, y = c("PF_park_cm_s", "SAF_mean_cm_s")) %>%
+cor_fronts <- expand_grid(x = sam_vars, y = c("PF_park_cm_s", "SAF_park_cm_s")) %>%
   pmap_dfr(cor_row) %>%
   mutate(block = "SAM vs front intensity")
 

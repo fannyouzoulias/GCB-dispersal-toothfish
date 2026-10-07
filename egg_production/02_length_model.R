@@ -103,7 +103,9 @@ pred_grid$log_LT_sd   <- apply(pred_LT, 1, sd)
 p_length <- base_map +
   geom_tile(data = filter(pred_grid, LON < 69),
             aes(x = LON, y = LAT, fill = exp(log_LT_mean))) +
-  scale_fill_viridis_c(option = "inferno", name = "TL (cm)    ") +
+  # one palette per variable: mako for length, viridis for abundance (04),
+  # inferno for eggs (05); all three are colour-blind safe
+  scale_fill_viridis_c(option = "mako", name = "TL (cm)    ") +
   iso_layers +
   # the stations the model was fitted to
   geom_point(data = data_LT, aes(x = LON, y = LAT), size = 0.3, colour = "black") +

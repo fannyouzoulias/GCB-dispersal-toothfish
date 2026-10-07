@@ -15,7 +15,9 @@
 # (SHOW_STATIC). The Polar Front jet of each year can be added in blue
 # (SHOW_PARK_JET): the ADT streamline of Park et al. (2019), with their
 # constraint that it round Kerguelen from the south on the 500-1000 m escarpment
-# (advection/PF_position_park.py).
+# (advection/PF_position_park.py). The Subantarctic Front of each year can be
+# added too (SHOW_SAF): the same kind of streamline, further north
+# (advection/SAF_position_park.py).
 #
 # Note that this is a HYDROGRAPHIC boundary, while the particles are advected by
 # surface geostrophic velocities: the two need not coincide, and in 2012, 2013,
@@ -62,6 +64,10 @@ if (!exists("JET_LABEL")) JET_LABEL <- "Annual PF streamline"
 # Write the intensity and mean latitude of the jet in the sector of the PF
 # index (67-72 E, 51-48 S, as 05) in each panel title. Needs SHOW_PARK_JET.
 if (!exists("SHOW_PF_STATS")) SHOW_PF_STATS <- FALSE
+
+# Also draw the SAF streamline of each year (orange), from
+# advection/SAF_position_park.py. Its folder is `saf_dir`, set in config.R.
+if (!exists("SHOW_SAF")) SHOW_SAF <- FALSE
 
 dir_pos <- switch(PF_SOURCE,
   sent    = ww_dir,
@@ -200,13 +206,25 @@ if (SHOW_PARK_JET) {
     summarise(I = mean(speed, na.rm = TRUE), lat_mean = mean(lat), .groups = "drop")
 }
 
+# SAF streamline of the year: the ADT streamline of Park et al. (2019) for that
+# front, with no pathway constraint (see advection/SAF_position_park.py).
+if (SHOW_SAF) {
+  saf_year <- map_dfr(years, function(y) {
+    read_csv(file.path(saf_dir, sprintf("saf_park_%d.csv", y)),
+             show_col_types = FALSE) %>%
+      dplyr::select(lon, lat) %>%
+      mutate(Year = y)
+  })
+}
+
 front_key <- c(annual = "Annual northern limit of Winter Water",
                clim   = "Climatological Polar Front (Park & Durand, 2019)",
-               jet    = JET_LABEL)
-front_col <- set_names(c("black", "black", "#0072B2"), front_key)
-front_lty <- set_names(c("solid", "42", "solid"), front_key)
+               jet    = JET_LABEL,
+               saf    = "Annual SAF streamline")
+front_col <- set_names(c("black", "black", "#0072B2", "#D55E00"), front_key)
+front_lty <- set_names(c("solid", "42", "solid", "solid"), front_key)
 # unnamed: ggplot takes the names of the breaks as labels
-shown     <- unname(front_key[c(SHOW_WW, SHOW_STATIC, SHOW_PARK_JET)])
+shown     <- unname(front_key[c(SHOW_WW, SHOW_STATIC, SHOW_PARK_JET, SHOW_SAF)])
 front_guide <- function(...) guide_legend(order = 1, direction = "vertical",
                                           keywidth = unit(2.5, "cm"), ...)
 
@@ -223,6 +241,7 @@ to_lab <- function(df) mutate(df, panel = factor(panel_lab[match(Year, years)],
 grid_by_year <- to_lab(grid_by_year)
 pf_year      <- to_lab(pf_year)
 if (SHOW_PARK_JET) jet_year <- to_lab(jet_year)
+if (SHOW_SAF)      saf_year <- to_lab(saf_year)
 
 ## ---------------------------------------------------------------------------
 ## PART 4. The plate
@@ -241,6 +260,12 @@ p_year <- ggplot() +
       geom_path(data = pf_clim, aes(lon, lat), colour = "white", linewidth = 1.1),
       geom_path(data = pf_clim, aes(lon, lat, linetype = front_key[["clim"]],
                                     colour = front_key[["clim"]]), linewidth = 0.5)) } +
+  # SAF streamline of the year, orange
+  { if (SHOW_SAF) list(
+      geom_path(data = saf_year, aes(lon, lat, group = Year),
+                colour = "white", linewidth = 1.6),
+      geom_path(data = saf_year, aes(lon, lat, group = Year, linetype = front_key[["saf"]],
+                                     colour = front_key[["saf"]]), linewidth = 0.85)) } +
   # PF jet of the year, blue, under the Winter Water edge
   { if (SHOW_PARK_JET) list(
       geom_path(data = jet_year, aes(lon, lat, group = Year),
@@ -279,7 +304,8 @@ p_year <- ggplot() +
 fig_name <- paste0("trajectories_by_year_with",
                    if (SHOW_WW) paste0("_front_", PF_SOURCE) else "",
                    if (SHOW_STATIC) (if (SHOW_WW) "_and_static" else "_static") else "",
-                   if (SHOW_PARK_JET) "_park_jet" else "", ".png")
+                   if (SHOW_PARK_JET) "_park_jet" else "",
+                   if (SHOW_SAF) "_saf" else "", ".png")
 ggsave(file.path(rev_fig, fig_name), p_year,
        width = 17, height = 18, dpi = 250, limitsize = FALSE)
 

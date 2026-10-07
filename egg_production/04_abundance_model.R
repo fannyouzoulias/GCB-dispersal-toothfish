@@ -87,7 +87,9 @@ pred_grid$N_sd   <- apply(pred_N, 1, sd)
 ## Map of predicted abundance --------------------------------------------------
 p_abundance <- base_map +
   geom_tile(data = pred_grid, aes(x = LON, y = LAT, fill = log(N_mean))) +
-  scale_fill_viridis_c(option = "inferno",
+  # one palette per variable: mako for length (02), viridis for abundance,
+  # inferno for eggs (05); all three are colour-blind safe
+  scale_fill_viridis_c(option = "viridis",
                        name = "Number of female spawners (log)    ") +
   iso_layers +
   geom_point(data = data_N, aes(x = LON, y = LAT), size = 0.3, colour = "black") +

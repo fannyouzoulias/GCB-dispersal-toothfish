@@ -20,17 +20,26 @@
 # Both are averaged over the same sector, 67-72 E and 51-48 S, so the PATH
 # is the only difference between them.
 #
+# The SAF is treated in the same way: the speed is sampled along the SAF OF
+# THAT YEAR, the ADT contour of Park et al. (2019) for that front, with no
+# bathymetric constraint (the SAF runs in deep water north of the islands).
+#
+#   SAF_park_cm_s  annual ADT contour, 63-73 E
+#   SAF_mean_cm_s  climatological contour of Park & Durand (2019), 63-73 E,
+#                  kept for comparison
+#
 #   - map of the front positions and of the sector they are averaged over (appendix)
 #   - annual PF index, from the front of each year
-#   - annual SAF index, averaged over 63-73 E
+#   - annual SAF index, from the front of each year
 #
 # Writes front_indices_annual.csv, used by 06_retention_front_glm.R.
 #
-# Requires: 00_setup.R, and the annual PF contours in `park_dir`
-#           (advection/PF_position_park.py)
+# Requires: 00_setup.R, the annual PF contours in `park_dir`
+#           (advection/PF_position_park.py) and the annual SAF contours in
+#           `saf_dir` (advection/SAF_position_park.py)
 #
 # Author: Fanny Ouzoulias
-# Date:   2026-08-19, PF index corrected 2026-09-22
+# Date:   2026-08-19, PF index corrected 2026-09-22, annual SAF 2026-10-06
 ################################################################################
 
 col_pf  <- "#4575b4"
@@ -51,9 +60,6 @@ LAT_MAX  <- -48
 pf_pts <- read_csv(dpath("front_intensity_PF.csv"), show_col_types = FALSE) %>%
   rename(lon = `Lon PF`, lat = `Lat PF`)
 
-saf_pts <- read_csv(dpath("front_intensity_SAF.csv"), show_col_types = FALSE) %>%
-  rename(lon = `Lon SAF`, lat = `Lat SAF`)
-
 to_long <- function(df, value_name) {
   df %>%
     pivot_longer(cols = matches("^[0-9]{4}$"),
@@ -63,7 +69,6 @@ to_long <- function(df, value_name) {
 }
 
 pf_long  <- to_long(pf_pts,  "intensity_pf")
-saf_long <- to_long(saf_pts, "intensity_saf")
 
 ## The front of each year ------------------------------------------------------
 # pf_park_<year>.csv holds the ADT contour of that year and, at each of its
@@ -81,14 +86,30 @@ pf_park_pts <- purrr::map2_dfr(f_park, years_pf, function(f, y) {
     transmute(Year = y, lon, lat, speed = mean_current_speed_cm_s)
 })
 
+# Same files for the SAF: saf_park_<year>.csv.
+# The sector the SAF index is averaged over, 63-73 E and 47-44 S: the box drawn
+# on the map. Every annual contour lies inside it in latitude (44.5-46.3 S).
+SAF_BAND <- c(63, 73)
+SAF_LAT  <- c(-47, -44)
+f_saf    <- file.path(saf_dir, sprintf("saf_park_%d.csv", years_pf))
+
+if (!all(file.exists(f_saf)))
+  stop("missing the annual SAF contours in\n  ", saf_dir,
+       "\n  -> run advection/SAF_position_park.py, then set `saf_dir` in config.R")
+
+saf_park_pts <- purrr::map2_dfr(f_saf, years_pf, function(f, y) {
+  read_csv(f, show_col_types = FALSE) %>%
+    transmute(Year = y, lon, lat, speed = mean_current_speed_cm_s)
+})
+
 ## Appendix figure: front positions and averaging sectors ----------------------
 # The two boxes are the sectors the yearly speeds are averaged over: the PF
 # where it runs along the northern plateau, the SAF further north. Grey lines
-# are the annual PF contours the index is sampled along, the brown line their
-# 2000-2023 climatology (same method, ADT averaged over the advection windows;
-# see 00_setup.R), blue points the climatological SAF of Park & Durand (2019).
+# are the annual contours the indices are sampled along, the brown (PF) and
+# blue (SAF) lines their 2000-2023 climatology (same method, ADT averaged over
+# the advection windows; see 00_setup.R).
 box_pf  <- tibble(xmin = LON_BAND[1], xmax = LON_BAND[2], ymin = LAT_MIN, ymax = LAT_MAX)
-box_saf <- tibble(xmin = 63, xmax = 73, ymin = -47, ymax = -44)
+box_saf <- tibble(xmin = SAF_BAND[1], xmax = SAF_BAND[2], ymin = SAF_LAT[1], ymax = SAF_LAT[2])
 
 p_fronts <- ggplot() +
   geom_sf(data = land_sf, fill = "darkgrey", inherit.aes = FALSE) +
@@ -96,8 +117,10 @@ p_fronts <- ggplot() +
             colour = "grey55", linewidth = 0.3, alpha = 0.7) +
   geom_path(data = filter(front_df, Front == "Polar Front"), aes(lon, lat),
             colour = "brown4", linewidth = 1) +
-  geom_point(data = saf_long, aes(lon, lat), size = 0.8, alpha = 0.9,
-             colour = "blue3") +
+  geom_path(data = saf_park_pts, aes(lon, lat, group = Year),
+            colour = "grey55", linewidth = 0.3, alpha = 0.7) +
+  geom_path(data = filter(front_df, Front == "Subantarctic Front"), aes(lon, lat),
+            colour = "blue3", linewidth = 1) +
   geom_rect(data = box_saf, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
             fill = "blue3", alpha = 0.2, colour = "blue3", linewidth = 1) +
   geom_rect(data = box_pf, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -120,13 +143,19 @@ pf_index <- pf_long %>%
   group_by(Year) %>%
   summarise(PF_mean_cm_s = mean(intensity_pf, na.rm = TRUE), .groups = "drop")
 
-## Annual SAF index ------------------------------------------------------------
+## Annual SAF index, along the front of that year ------------------------------
+saf_park_index <- saf_park_pts %>%
+  filter(lon >= SAF_BAND[1], lon <= SAF_BAND[2], lat >= SAF_LAT[1], lat <= SAF_LAT[2]) %>%
+  group_by(Year) %>%
+  summarise(SAF_park_cm_s = mean(speed, na.rm = TRUE), .groups = "drop")
+
+## Annual SAF index, along the climatological front -----------------------------
 saf_index <- read_csv(dpath("mean_intensity_SAF_63_73E.csv"), show_col_types = FALSE) %>%
   dplyr::select(matches("^[0-9]{4}$")) %>%
   pivot_longer(cols = everything(), names_to = "Year", values_to = "SAF_mean_cm_s") %>%
   mutate(Year = as.integer(Year))
 
-front_indices <- purrr::reduce(list(pf_park_index, pf_index, saf_index),
+front_indices <- purrr::reduce(list(pf_park_index, pf_index, saf_park_index, saf_index),
                                full_join, by = "Year") %>%
   arrange(Year)
 
@@ -135,6 +164,11 @@ message(sprintf(
   mean(front_indices$PF_park_cm_s, na.rm = TRUE),
   mean(front_indices$PF_mean_cm_s, na.rm = TRUE),
   cor(front_indices$PF_park_cm_s, front_indices$PF_mean_cm_s, use = "complete.obs")))
+message(sprintf(
+  "SAF index: front of the year %.2f cm/s, climatological %.2f, r = %.3f",
+  mean(front_indices$SAF_park_cm_s, na.rm = TRUE),
+  mean(front_indices$SAF_mean_cm_s, na.rm = TRUE),
+  cor(front_indices$SAF_park_cm_s, front_indices$SAF_mean_cm_s, use = "complete.obs")))
 
 readr::write_csv(front_indices, file.path(out_dir, "front_indices_annual.csv"))
 
@@ -166,6 +200,6 @@ save_fig("pf_mean_intensity_climatological.png",
          width = 10, height = 6)
 
 save_fig("saf_mean_intensity.png",
-         plot_index(front_indices, "SAF_mean_cm_s",
-                    "Subantarctic Front \nmean intensity (cm/s)\n(63-73 E)", col_saf),
+         plot_index(front_indices, "SAF_park_cm_s",
+                    "SAF intensity (cm/s)\n(63-73 E, 47-44 S)", col_saf),
          width = 10, height = 6)

@@ -115,6 +115,36 @@ p_eggs_zones <- base_map +
 save_fig("egg_production_with_recruitment_zones.png", p_eggs_zones,
          width = 15, height = 10)
 
+## Four-panel figure -----------------------------------------------------------
+# A) female abundance (04), B) female length (02), C) fecundity-length relation
+# (03), D) egg production. The first three plots are those built by 02-04, so
+# this block only runs when they are in memory (i.e. the whole chain was run).
+if (all(sapply(c("p_abundance", "p_length", "p_fecundity"), exists))) {
+  # at half the width a longitude label every degree no longer fits, and the
+  # 51.5 S label runs into the 62 E one at the corner
+  panel_axes <- function(p) p +
+    scale_x_continuous(breaks = seq(62, 70, by = 2)) +
+    scale_y_continuous(breaks = seq(-51, -48, by = 0.5))
+
+  # panel C takes the shape of the maps and a legend at the bottom like theirs,
+  # so that the four panels have the same size and line up in rows and columns
+  map_ratio <- diff(c(-51.5, -47.9)) /
+    (diff(c(62, 70)) * cos(mean(c(-51.5, -47.9)) * pi / 180))
+  p_fec_panel <- p_fecundity +
+    guides(colour = guide_legend(override.aes = list(size = 4, alpha = 1))) +
+    theme(aspect.ratio = map_ratio, legend.position = "bottom")
+
+  p_panels <- (panel_axes(p_abundance) | panel_axes(p_length)) /
+    (p_fec_panel |
+       panel_axes(map_grid(log(total_oeufs_mean), "Number of eggs (log)   "))) +
+    patchwork::plot_annotation(tag_levels = "A") &
+    theme(plot.tag          = element_text(size = 30, face = "bold"),
+          plot.tag.location = "panel",
+          plot.tag.position = c(0.07, 0.92))
+
+  save_fig("egg_production_panels.png", p_panels, width = 24, height = 17)
+}
+
 ## Total over the spawning area ------------------------------------------------
 total_by_draw <- colSums(total_eggs_sims)
 message("Total egg production: mean = ", signif(mean(total_by_draw), 3),

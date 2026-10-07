@@ -79,6 +79,14 @@ The Park & Durand front file must be downloaded separately from DOI `10.17882/59
 
 Two sensitivity tests are available: `--fullyear` (ADT averaged over the calendar year instead of the advection window) and `--south-only` (the previous, weaker form of the Kerguelen constraint).
 
+`SAF_position_park.py` constructs the annual Subantarctic Front (SAF) streamline in the same way, without pathway constraint (the SAF flows in deep water north of the islands). It reads the products downloaded by `PF_position_park.py --download` from the same `ROOT`, and writes to `ROOT/output_saf/` one streamline per year (`saf_park_<year>.csv`, with the current speed along it), an annual table, and the 2000-2023 mean streamline (`saf_park_climatology_2000-2023.csv`). The SAF intensity is the mean surface geostrophic current speed along the annual SAF streamline within 63-73°E and 44-47°S.
+
+```bash
+python SAF_position_park.py
+```
+
+Set `park_dir` and `saf_dir` in `config.R` to the two output folders.
+
 ### 3. Larval dispersal
 
 Run the scripts in `larval_dispersal/` in numerical order.
@@ -90,7 +98,7 @@ The main workflow:
 3. derives annual front-intensity indices;
 4. models retention as a function of the PF-associated jet intensity.
 
-Scripts `07` to `13` contain additional analyses added during manuscript revision. `11_trajectory_reentry.R` answers the question of whether retention rises with the simulated duration because particles leave the recruitment areas and come back: it splits the particles inside recruitment habitat at each duration into those that arrived and stayed and those that left and returned. `12_sam_front_correlations.R` gives the numbers of the SAM paragraph: correlations of the annual and seasonal SAM with PF-associated jet and SAF intensities and with larval retention, and the pooled seasonal model. It reads the SAM series from `sam_dir` (`config.R`). `13_recirculation_southern_pathway.R` correlates, year by year, the share of particles trapped in the western recirculation cell with the share advected along the southern PF-associated pathway.
+`05_front_indices.R` computes the PF-associated jet and SAF intensities from the annual streamlines and draws the map of the fronts and of the sectors they are averaged over.
 
 `01_load_trajectories.R` is the most memory-intensive step. Once completed, its saved outputs can be loaded directly:
 

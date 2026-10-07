@@ -32,6 +32,10 @@ dpath <- function(...) file.path(data_dir, ...)
 #               ROOT + "/output". Holds pf_park_<year>.csv, the annual PF
 #               contour and the current speed along it: THE FRONT INTENSITY
 #               INDEX used by 05 and 06.
+#   saf_dir     the `output_saf/` folder of advection/SAF_position_park.py,
+#               i.e. its ROOT + "/output_saf". Holds saf_park_<year>.csv, the
+#               annual SAF contour and the current speed along it: the SAF
+#               intensity index of 05 and 06.
 #   ww_dir      the Winter Water front of each year, written by
 #               advection/PF_position_from_ww_prob_presence.ipynb.
 #   ww_int_dir  that same front with the current speed sampled along it,
@@ -51,6 +55,7 @@ sam_dir <- "SAM"
 
 front_dir  <- "fronts"
 park_dir   <- file.path(front_dir, "park")
+saf_dir    <- file.path(front_dir, "saf")
 ww_dir     <- file.path(front_dir, "winter_water")
 ww_int_dir <- file.path(front_dir, "winter_water_intensity")
 uv_dir     <- file.path(front_dir, "velocity_fields")

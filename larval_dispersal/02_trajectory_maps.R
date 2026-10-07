@@ -28,11 +28,15 @@ df_w <- df_traj %>%
   filter(!is.na(Eggs_Released))
 
 ## Density ---------------------------------------------------------------------
-# Positions are binned on a regular grid (~5 km).
-res_lon <- 0.065
-res_lat <- 0.045
-x0 <- floor(min(df_w$Longitude, na.rm = TRUE))
-y0 <- floor(min(df_w$Latitude,  na.rm = TRUE))
+# Positions are binned on a regular 0.05-degree grid (about 3.6 x 5.6 km).
+# The advection output stores positions to 0.01 degree, so the cell size must be
+# a multiple of that and the cell edges must fall between two stored values
+# (hence the 0.005 offset). Otherwise neighbouring cells hold unequal numbers of
+# possible positions and the map shows a regular grid pattern.
+res_lon <- 0.05
+res_lat <- 0.05
+x0 <- floor(min(df_w$Longitude, na.rm = TRUE)) - 0.005
+y0 <- floor(min(df_w$Latitude,  na.rm = TRUE)) - 0.005
 
 agg_weighted_grid <- function(df_sub) {
   df_sub %>%

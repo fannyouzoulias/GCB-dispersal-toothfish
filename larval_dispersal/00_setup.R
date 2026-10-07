@@ -74,18 +74,18 @@ land_sf <- rbind(
 recruitment_zones <- st_read(dpath("zones_recruitment.geojson"), quiet = TRUE)
 spawning_zones    <- st_read(dpath("zones_spawning.geojson"),    quiet = TRUE)
 
-# Mean positions of the Polar Front (PF) and Subantarctic Front (SAF).
-# PF: our 2000-2023 climatology, the annual PF streamline of
-# advection/PF_position_park.py (Park et al. 2019 method) read from the ADT
-# averaged over the advection windows. SAF: Park & Durand (2019), from the file
-# that carries its yearly intensities.
+# Mean positions of the Polar Front (PF) and Subantarctic Front (SAF): our
+# 2000-2023 climatologies, the annual streamlines of
+# advection/PF_position_park.py and advection/SAF_position_park.py (Park et al.
+# 2019 method) read from the ADT averaged over the advection windows.
 front_df <- bind_rows(
   read_csv(file.path(park_dir, "pf_park_climatology_2000-2023.csv"),
            show_col_types = FALSE) %>%
     dplyr::select(lon, lat) %>%
     mutate(Front = "Polar Front"),
-  read_csv(dpath("front_intensity_SAF.csv"), show_col_types = FALSE) %>%
-    dplyr::select(lon = `Lon SAF`, lat = `Lat SAF`) %>%
+  read_csv(file.path(saf_dir, "saf_park_climatology_2000-2023.csv"),
+           show_col_types = FALSE) %>%
+    dplyr::select(lon, lat) %>%
     mutate(Front = "Subantarctic Front")
 ) %>%
   filter(!is.na(lon), !is.na(lat))

@@ -17,7 +17,8 @@
 # correction made at revision, see the header of 05_front_indices.R. The
 # manuscript used PF_mean_cm_s, the climatological contour, which is still
 # written out by 05; 10_pf_park_intensity_glm.R fits both and shows the
-# difference.
+# difference. The SAF intensity is SAF_park_cm_s, sampled in the same way along
+# the annual SAF streamline.
 #
 # Requires: 00_setup.R, and the CSVs written by 04_retention_recruitment.R
 #           and 05_front_indices.R
@@ -30,11 +31,11 @@
 dat <- read_csv(file.path(out_dir, "recruited_annual.csv"), show_col_types = FALSE) %>%
   left_join(read_csv(file.path(out_dir, "front_indices_annual.csv"),
                      show_col_types = FALSE), by = "Year") %>%
-  drop_na(Recruited_total, PF_park_cm_s, SAF_mean_cm_s) %>%
+  drop_na(Recruited_total, PF_park_cm_s, SAF_park_cm_s) %>%
   mutate(
     logR  = log(Recruited_total),
     z_PF  = as.numeric(scale(PF_park_cm_s)),
-    z_SAF = as.numeric(scale(SAF_mean_cm_s))
+    z_SAF = as.numeric(scale(SAF_park_cm_s))
   )
 
 ## Polar Front model -----------------------------------------------------------
@@ -65,7 +66,11 @@ p_pf_effect <- ggplot(dat, aes(x = z_PF, y = Recruited_total)) +
   geom_line(data = grid, aes(x = z_PF, y = fit_R),
             linewidth = 1.1, inherit.aes = FALSE) +
   geom_point(size = 2.6, alpha = 0.9) +
-  labs(x = "PF-associated jet intensity (standardised)", y = "Number of \nlarvae retained") +
+  # y axis in billions of larvae
+  scale_y_continuous(breaks = seq(6, 16, by = 2) * 1e9,
+                     labels = function(x) x / 1e9) +
+  labs(x = "PF-associated jet intensity (standardised)",
+       y = "Number of larvae\nretained (billions)") +
   theme_paper() +
   theme(panel.grid = element_blank())
 
