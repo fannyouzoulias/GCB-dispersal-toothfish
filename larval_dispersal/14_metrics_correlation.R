@@ -18,20 +18,6 @@
 # NW area, trapping against the southern corridor, SAM against the PF-
 # associated jet intensity and against retention.
 #
-# The matrix is descriptive. It holds 153 pairs on 24 years, with no correction
-# for multiple testing, and several metrics are parts of a whole (retention is
-# the sum of the recruitment areas, and of the spawning areas), so some cells
-# are large by construction: the western spawning area releases 77 % of the
-# eggs, hence its r = 0.95 with total retention.
-#
-# All metrics are on the particles released in weeks 24-28. Retention is log R,
-# the response of the GLM of 06, so that its cell against the PF-associated jet
-# intensity carries the r of Table S3.
-#
-# Writes, in outputs/revision/, annual_metrics.csv, metrics_correlation.csv,
-# connectivity_spawning_recruitment.csv and its _by_period version; figures go
-# to outputs/figures/revision/.
-#
 # Requires: 00_setup.R, the trajectories of 01_load_trajectories.R (read from
 #           outputs/ if they are not in memory), the CSVs of 04 and 05, and the
 #           SAM series in `sam_dir` (config.R). Needs data.table.
@@ -211,114 +197,6 @@ p_conn <- ggplot(conn_plot, aes(x = Percent, y = fct_rev(Spawning))) +
 
 ggsave(file.path(rev_fig, "connectivity_spawning_recruitment.png"), p_conn,
        width = 12, height = 6, dpi = 300)
-
-## ---------------------------------------------------------------------------
-## PART 4b. Connectivity before and after 2010
-## ---------------------------------------------------------------------------
-# retention_by_zone.png (04) shows a shift around 2010: the NW, NE and South
-# areas receive comparable shares until then, the NW area dominates afterwards.
-# Same connectivity as PART 4, split at `period_break`, to see which spawning
-# area carries that shift. The release is the same every year, so a difference
-# between the two periods comes from the circulation alone.
-period_break <- 2010
-yrs <- range(parts$Year)
-period_levels <- c(sprintf("%d–%d", yrs[1], period_break),
-                   sprintf("%d–%d", period_break + 1, yrs[2]))
-period_of <- function(y)
-  factor(if_else(y <= period_break, period_levels[1], period_levels[2]),
-         levels = period_levels)
-
-# Annual shares, with the pairs that exchange nothing in a year kept at zero.
-annual_conn <- parts[!is.na(Zone_recruitment), .(Eggs = sum(Eggs_Released)),
-                     by = .(Year, Zone_spawning, Zone_recruitment)
-                     ][CJ(Year = sort(unique(parts$Year)),
-                          Zone_spawning = names(lab_spw),
-                          Zone_recruitment = names(lab_rec)),
-                       on = .(Year, Zone_spawning, Zone_recruitment)]
-annual_conn[is.na(Eggs), Eggs := 0]
-annual_conn <- merge(annual_conn, annual_total[, .(Year, Zone_spawning, Released)],
-                     by = c("Year", "Zone_spawning"))
-annual_conn[, `:=`(Percent = 100 * Eggs / Released, Period = period_of(Year))]
-annual_total[, Period := period_of(Year)]
-
-conn_period <- annual_conn[, .(Percent = 100 * sum(Eggs) / sum(Released)),
-                           by = .(Period, Zone_spawning, Zone_recruitment)]
-total_period <- annual_total[, .(Total     = 100 * sum(Retained) / sum(Released),
-                                 Total_min = min(100 * Retained / Released),
-                                 Total_max = max(100 * Retained / Released)),
-                             by = .(Period, Zone_spawning)]
-conn_period <- merge(conn_period, total_period, by = c("Period", "Zone_spawning"))
-conn_period <- merge(conn_period, spawned[, .(Zone_spawning, Share_of_eggs)],
-                     by = "Zone_spawning")
-
-# One row per pair: the two periods side by side, the same shares as a
-# percentage of ALL the eggs released (the unit of retention_by_zone.png), and
-# a Wilcoxon test on the annual shares (11 against 13 years, descriptive).
-period_test <- function(x, g)
-  suppressWarnings(wilcox.test(x ~ g, exact = FALSE)$p.value)
-by_period <- dcast(conn_period, Zone_spawning + Zone_recruitment + Share_of_eggs ~ Period,
-                   value.var = "Percent")
-setnames(by_period, period_levels, c("Before", "After"))
-by_period <- merge(by_period,
-                   annual_conn[, .(p_wilcoxon = period_test(Percent, Period)),
-                               by = .(Zone_spawning, Zone_recruitment)],
-                   by = c("Zone_spawning", "Zone_recruitment"))
-total_test <- annual_total[, .(Zone_recruitment = "total",
-                               Before = 100 * sum(Retained[Period == period_levels[1]]) /
-                                 sum(Released[Period == period_levels[1]]),
-                               After  = 100 * sum(Retained[Period == period_levels[2]]) /
-                                 sum(Released[Period == period_levels[2]]),
-                               p_wilcoxon = period_test(100 * Retained / Released, Period)),
-                           by = Zone_spawning]
-by_period <- rbind(by_period,
-                   merge(total_test, spawned[, .(Zone_spawning, Share_of_eggs)],
-                         by = "Zone_spawning"), use.names = TRUE)
-by_period[, `:=`(Change = After - Before,
-                 Before_all_eggs = Before * Share_of_eggs / 100,
-                 After_all_eggs  = After  * Share_of_eggs / 100)]
-by_period[, Change_all_eggs := After_all_eggs - Before_all_eggs]
-setorder(by_period, Zone_spawning, -Before)
-fwrite(by_period, file.path(rev_dir, "connectivity_spawning_recruitment_by_period.csv"))
-
-cat(sprintf("\n======== CONNECTIVITY, %s (Before) AGAINST %s (After) ========\n",
-            period_levels[1], period_levels[2]))
-print(as.data.frame(by_period), digits = 2)
-
-conn_period_plot <- conn_period %>%
-  as_tibble() %>%
-  mutate(Recruitment = factor(lab_rec[Zone_recruitment], levels = rev(lab_rec)),
-         Spawning = factor(
-           sprintf("%s\n(%.0f%% of eggs)", lab_spw[Zone_spawning], Share_of_eggs),
-           levels = sprintf("%s\n(%.0f%% of eggs)", lab_spw[names(lab_spw)],
-                            spawned$Share_of_eggs[match(names(lab_spw), spawned$Zone_spawning)])))
-
-p_conn_period <- ggplot(conn_period_plot, aes(x = Percent, y = fct_rev(Period))) +
-  geom_col(aes(fill = Recruitment), colour = "white", linewidth = 0.8, width = 0.75) +
-  geom_text(aes(label = if_else(Percent >= 3, sprintf("%.0f", Percent), ""),
-                group = Recruitment),
-            position = position_stack(vjust = 0.5), size = 6, colour = "grey15") +
-  # total retained, with the range of the annual totals within the period
-  geom_text(data = distinct(conn_period_plot, Spawning, Period, Total, Total_min, Total_max),
-            aes(x = Total, y = fct_rev(Period),
-                label = sprintf("%.0f%%  (%.0f–%.0f)", Total, Total_min, Total_max)),
-            inherit.aes = FALSE, hjust = -0.08, size = 6, colour = "grey15") +
-  facet_grid(Spawning ~ ., switch = "y") +
-  scale_fill_manual(values = cols_rec, breaks = unname(lab_rec),
-                    name = "Recruitment area") +
-  scale_x_continuous(expand = expansion(mult = c(0, 0.28))) +
-  labs(x = "Eggs retained (% of the eggs released in the spawning area)",
-       y = "Spawning area") +
-  theme_bw() + theme_paper() +
-  theme(panel.grid.major.y = element_blank(), panel.grid.minor = element_blank(),
-        strip.placement = "outside",
-        strip.background = element_blank(),
-        strip.text.y.left = element_text(angle = 0, hjust = 1, size = 20,
-                                         colour = "grey30"),
-        legend.position = "top",
-        legend.title = element_text(margin = margin(r = 15)))
-
-ggsave(file.path(rev_fig, "connectivity_spawning_recruitment_by_period.png"),
-       p_conn_period, width = 13, height = 7.5, dpi = 300)
 
 ## ---------------------------------------------------------------------------
 ## PART 5. Annual table and correlations
