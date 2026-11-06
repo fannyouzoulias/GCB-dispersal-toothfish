@@ -74,13 +74,18 @@ retention_annual <- ret_24_28 %>%
 readr::write_csv(retention_annual, file.path(out_dir, "retention_annual.csv"))
 
 # Upper panel: one point per year, with a locally smoothed trend.
-p_annual <- ggplot(retention_annual, aes(x = Year, y = mean_ret)) +
+# x is the column index of the heatmap below (year i -> i, "Mean" -> last + 1),
+# with the same limits as a discrete axis (0.6 of expansion each side), so that
+# each point sits above its own column.
+n_years <- nrow(retention_annual)
+p_annual <- ggplot(retention_annual,
+                   aes(x = Year - min(Year) + 1, y = mean_ret)) +
   geom_point(size = 2, alpha = 0.8) +
   geom_hline(yintercept = mean(retention_annual$mean_ret, na.rm = TRUE),
              linetype = "dashed", colour = "grey40") +
   geom_smooth(method = "loess", formula = y ~ x, span = 0.2, se = FALSE,
               colour = "darkred", linewidth = 1) +
-  scale_x_continuous(breaks = seq(2000, 2023, 1)) +
+  scale_x_continuous(limits = c(0.4, n_years + 1 + 0.6), expand = c(0, 0)) +
   labs(y = "Larval retention\nrate (%)") +
   theme_bw() + theme_paper() +
   # the years are labelled once, under the heatmap below
